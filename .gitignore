@@ -25,6 +25,9 @@ htmlcov/
 # Logs
 *.log
 
+# SDD scratch
+.superpowers/
+
 # Course Documents / PDFs (keep local only)
 *.pdf
 docs/*.pdf
