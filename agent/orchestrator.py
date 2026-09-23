@@ -1,5 +1,4 @@
-from typing import Dict, Any, List, Optional
-import pandas as pd
+from typing import Dict, Any, List
 
 from agent.config import ExperimentConfig
 from agent.evaluator import StrategyEvaluator
@@ -125,6 +124,15 @@ class StrategyOrchestrator:
             # Fallback baseline if all rejected
             fallback = StrategySpec("fallback", "Default SMA 50", "momentum", {"window": 50})
             self.evaluated_specs.append(fallback)
+            self.search_results.append(
+                self.evaluator.evaluate_search(fallback, self.config.feedback_metrics)
+            )
+
+        # Index-align search metrics with evaluated specs
+        search_by_spec_id = {
+            spec.spec_id: metrics
+            for spec, metrics in zip(self.evaluated_specs, self.search_results)
+        }
 
         selection_scores = []
         for spec in self.evaluated_specs:
@@ -134,6 +142,7 @@ class StrategyOrchestrator:
         # Sort descending
         selection_scores.sort(key=lambda x: x[0], reverse=True)
         best_score, best_spec, best_sel_metrics = selection_scores[0]
+        search_metrics = search_by_spec_id.get(best_spec.spec_id, {})
 
         # Holdout test on winner only
         test_metrics = self.evaluator.evaluate_test(best_spec)
@@ -146,6 +155,7 @@ class StrategyOrchestrator:
             "seed": self.config.seed,
             "total_candidates": len(self.evaluated_specs),
             "best_spec": best_spec.to_dict(),
+            "search_metrics": search_metrics,
             "selection_metrics": best_sel_metrics,
             "test_metrics": test_metrics,
             "overfitting_gap": overfitting_gap,

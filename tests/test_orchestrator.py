@@ -7,9 +7,11 @@ from agent.orchestrator import StrategyOrchestrator
 
 @pytest.fixture
 def synthetic_data():
-    dates = pd.date_range("2020-01-01", periods=120, freq="B")
+    # 300 bars → ~180-bar search split (60%), enough for 50-day SMA without NaN/warnings
+    n = 300
+    dates = pd.date_range("2020-01-01", periods=n, freq="B")
     np.random.seed(42)
-    prices = 100 + np.cumsum(np.random.randn(120))
+    prices = 100 + np.cumsum(np.random.randn(n))
     df = pd.DataFrame({
         "open": prices,
         "high": prices + 1,
@@ -32,6 +34,7 @@ def test_all_frameworks_run_successfully(synthetic_data, framework):
     result = orchestrator.run()
     
     assert "best_spec" in result
+    assert "search_metrics" in result
     assert "selection_metrics" in result
     assert "test_metrics" in result
     assert "overfitting_gap" in result
