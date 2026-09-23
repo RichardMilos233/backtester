@@ -11,6 +11,22 @@ def test_researcher_proposes_spec():
     assert isinstance(spec, StrategySpec)
     assert spec.signal_type in ("momentum", "macd")
 
+def test_researcher_first_proposal_attempt_numbering():
+    client = MockLLMClient(seed=42)
+    captured = []
+    original_generate = client.generate
+
+    def capture_generate(prompt, system_prompt=""):
+        captured.append(prompt)
+        return original_generate(prompt, system_prompt=system_prompt)
+
+    client.generate = capture_generate
+    researcher = Researcher(llm_client=client, memory_length=3)
+    spec = researcher.propose()
+
+    assert "Proposal Attempt: #1" in captured[0]
+    assert spec.spec_id == "researcher_0_iter_1"
+
 def test_researcher_rolling_memory():
     client = MockLLMClient(seed=42)
     researcher = Researcher(llm_client=client, memory_length=2)
@@ -20,4 +36,5 @@ def test_researcher_rolling_memory():
         researcher.update_memory(s, {"sharpe_ratio": 0.5 + i * 0.1})
         
     assert len(researcher.memory) == 2
+    assert researcher.memory[0]["spec"].spec_id == "s_2"
     assert researcher.memory[-1]["spec"].spec_id == "s_3"

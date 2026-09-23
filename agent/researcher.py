@@ -38,7 +38,7 @@ class Researcher:
     def _build_prompt(self, rejection_feedback: Optional[str] = None) -> str:
         prompt_lines = [
             f"Researcher ID: {self.researcher_id}",
-            f"Proposal Attempt: #{self.proposal_count + 1}",
+            f"Proposal Attempt: #{self.proposal_count}",
             "\n--- Historical Memory (Most Recent Strategies & Performance) ---"
         ]
         if not self.memory:
