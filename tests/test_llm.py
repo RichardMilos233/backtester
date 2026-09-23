@@ -1,6 +1,5 @@
 import json
-import pytest
-from agent.llm import MockLLMClient, BaseLLMClient
+from agent.llm import MockLLMClient, REJECTION_ALERT
 
 
 def test_mock_llm_client_returns_valid_json():
@@ -24,9 +23,12 @@ def test_mock_llm_deterministic_across_runs():
 
 def test_mock_llm_reacts_to_rejection():
     client = MockLLMClient(seed=42)
-    prompt_with_rejection = "Previous proposal rejected: Invalid momentum window: 0. Fix it."
+    prompt_with_rejection = (
+        f"{REJECTION_ALERT}\n"
+        "Reason: Invalid momentum window: 0. Fix it."
+    )
     response = client.generate(prompt_with_rejection)
     parsed = json.loads(response)
-    # Generated window should be valid
+    assert "Revised proposal" in parsed["hypothesis"]
     if parsed["signal_type"] == "momentum":
         assert parsed["params"]["window"] > 1

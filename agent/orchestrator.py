@@ -1,16 +1,23 @@
-from typing import Dict, Any, List
+from typing import Callable, Dict, Any, List, Optional
 
 from agent.config import ExperimentConfig
 from agent.evaluator import StrategyEvaluator
 from agent.spec import StrategySpec
-from agent.llm import MockLLMClient
+from agent.llm import BaseLLMClient, MockLLMClient
 from agent.researcher import Researcher
 from agent.reviewer import Reviewer
 
+
 class StrategyOrchestrator:
-    def __init__(self, config: ExperimentConfig, evaluator: StrategyEvaluator):
+    def __init__(
+        self,
+        config: ExperimentConfig,
+        evaluator: StrategyEvaluator,
+        llm_client_factory: Optional[Callable[[int], BaseLLMClient]] = None,
+    ):
         self.config = config
         self.evaluator = evaluator
+        self.llm_client_factory = llm_client_factory or MockLLMClient
         self.evaluated_specs: List[StrategySpec] = []
         self.search_results: List[Dict[str, Any]] = []
 
@@ -40,7 +47,7 @@ class StrategyOrchestrator:
 
     def _run_framework_b(self) -> Dict[str, Any]:
         """Framework B: Single Researcher, No Reviewer."""
-        client = MockLLMClient(seed=self.config.seed)
+        client = self.llm_client_factory(self.config.seed)
         researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_b")
         
         for iteration in range(self.config.max_iterations):
@@ -60,7 +67,7 @@ class StrategyOrchestrator:
 
     def _run_framework_c(self) -> Dict[str, Any]:
         """Framework C: Researcher + Reviewer Verification Gate."""
-        client = MockLLMClient(seed=self.config.seed)
+        client = self.llm_client_factory(self.config.seed)
         researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_c")
         reviewer = Reviewer(allow_duplicates=False)
         
@@ -86,8 +93,8 @@ class StrategyOrchestrator:
 
     def _run_framework_d(self) -> Dict[str, Any]:
         """Framework D: Dual-Researcher Competition."""
-        client1 = MockLLMClient(seed=self.config.seed)
-        client2 = MockLLMClient(seed=self.config.seed + 1000)
+        client1 = self.llm_client_factory(self.config.seed)
+        client2 = self.llm_client_factory(self.config.seed + 1000)
         res1 = Researcher(client1, memory_length=self.config.memory_length, researcher_id="res_d1")
         res2 = Researcher(client2, memory_length=self.config.memory_length, researcher_id="res_d2")
         
@@ -108,8 +115,11 @@ class StrategyOrchestrator:
         if len(self.search_results) < self.config.patience + 1:
             return False
         metric = self.config.selection_metric
-        recent = [r.get(metric, 0.0) for r in self.search_results[-self.config.patience:]]
-        best_prior = max(r.get(metric, 0.0) for r in self.search_results[:-self.config.patience])
+        # Safe: if metric is missing from any result, do not early-stop on zeros
+        if any(metric not in r for r in self.search_results):
+            return False
+        recent = [r[metric] for r in self.search_results[-self.config.patience:]]
+        best_prior = max(r[metric] for r in self.search_results[:-self.config.patience])
         if all((r - best_prior) < self.config.min_improvement for r in recent):
             return True
         return False

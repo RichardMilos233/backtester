@@ -34,3 +34,6 @@ class ExperimentConfig:
         if self.framework_type not in ("A", "B", "C", "D"):
             raise ValueError(f"Invalid framework_type: '{self.framework_type}'. Must be one of ['A', 'B', 'C', 'D'].")
         self.data_split.validate()
+        # Ensure selection_metric is always available in Researcher feedback / early-stop
+        if self.selection_metric not in self.feedback_metrics:
+            self.feedback_metrics.append(self.selection_metric)

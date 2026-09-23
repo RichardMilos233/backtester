@@ -29,3 +29,21 @@ def test_reviewer_passes_novel_valid_spec():
     result = reviewer.review(spec2, history=[spec1])
     assert result.passed is True
     assert result.reason == ""
+
+
+def test_reviewer_blocks_short_hypothesis():
+    reviewer = Reviewer()
+    short_hyp = StrategySpec("r1", "ab", "momentum", {"window": 50})
+    result = reviewer.review(short_hyp, history=[])
+    assert result.passed is False
+    assert "Insufficient hypothesis" in result.reason
+
+
+def test_reviewer_allows_duplicates_when_flag_true():
+    reviewer = Reviewer(allow_duplicates=True)
+    spec1 = StrategySpec("r1", "first hypothesis", "momentum", {"window": 50})
+    spec2 = StrategySpec("r2", "same params again", "momentum", {"window": 50})
+
+    result = reviewer.review(spec2, history=[spec1])
+    assert result.passed is True
+    assert result.reason == ""

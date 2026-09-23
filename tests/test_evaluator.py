@@ -51,3 +51,23 @@ def test_independent_capital_per_split(dummy_market_data):
     # Both evaluations should independently start from initial_capital
     assert res_search["initial_capital"] == 50000.0
     assert res_select["initial_capital"] == 50000.0
+
+
+def test_causal_isolation_no_lookahead(dummy_market_data):
+    """Signals on a split slice must match signals computed only up to that point (no future bars)."""
+    from src.signals import compute_moving_average_signal
+
+    evaluator = StrategyEvaluator(dummy_market_data)
+    spec = StrategySpec("m1", "causal check", "momentum", {"window": 10})
+    search_df, select_df, test_df = evaluator.split_data()
+
+    # Signals as produced by evaluator for the select split
+    _, split_signals = evaluator._generate_signals_for_split(spec, select_df)
+
+    # Recompute using only data up through the end of select (no test-period future)
+    end_loc = dummy_market_data.index.get_loc(select_df.index[-1])
+    prefix_df = dummy_market_data.iloc[: end_loc + 1]
+    prefix_signals = compute_moving_average_signal(prefix_df, window=spec.params["window"])
+    expected = prefix_signals.loc[select_df.index].fillna(0).astype(int)
+
+    assert split_signals.equals(expected)

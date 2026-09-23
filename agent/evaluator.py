@@ -1,6 +1,5 @@
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Optional
 import pandas as pd
-import numpy as np
 
 from agent.spec import StrategySpec
 from agent.config import DataSplitConfig
@@ -12,7 +11,7 @@ class StrategyEvaluator:
     def __init__(
         self,
         df: pd.DataFrame,
-        split_config: DataSplitConfig = None,
+        split_config: Optional[DataSplitConfig] = None,
         initial_capital: float = 100000.0
     ):
         self.df = df.sort_index()
@@ -90,7 +89,7 @@ class StrategyEvaluator:
         metrics_dict["split_name"] = split_name
         return metrics_dict
 
-    def evaluate_search(self, spec: StrategySpec, feedback_metrics: List[str] = None) -> Dict[str, Any]:
+    def evaluate_search(self, spec: StrategySpec, feedback_metrics: Optional[List[str]] = None) -> Dict[str, Any]:
         full_res = self.evaluate_spec(spec, "search")
         if not feedback_metrics:
             return full_res
