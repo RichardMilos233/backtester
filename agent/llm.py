@@ -76,23 +76,64 @@ class MockLLMClient(BaseLLMClient):
 
 class OpenAICompatibleClient(BaseLLMClient):
     """
-    Client for OpenAI-compatible REST APIs (DeepSeek, Qwen, Ollama, OpenAI).
+    Client for OpenAI-compatible REST APIs (DeepSeek, Qwen, Amber AI Gateway, OpenAI).
+    Uses standard library urllib for zero external dependencies.
     """
     def __init__(
         self,
         api_key: str = "",
         base_url: str = "https://api.openai.com/v1",
-        model: str = "gpt-4o",
-        temperature: float = 0.7
+        model: str = "deepseek-chat",
+        temperature: float = 0.7,
+        timeout: float = 60.0
     ):
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
         self.model = model
         self.temperature = temperature
+        self.timeout = timeout
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
-        # Placeholder for external HTTP request library (e.g. urllib or httpx/requests)
-        # Raises clear error if used without API key
+        import re
+        import urllib.request
+        import urllib.error
+
         if not self.api_key:
             raise ValueError("OpenAICompatibleClient requires a non-empty api_key.")
-        raise NotImplementedError("Live API calls to be plugged in when external key is provided.")
+
+        endpoint = f"{self.base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature
+        }
+
+        req = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST"
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                content = result["choices"][0]["message"]["content"]
+                # Clean up reasoning <think>...</think> tags if model is reasoning-based
+                cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                return cleaned_content
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"HTTPError {e.code}: {e.reason}\nBody: {error_body}") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to call LLM API: {str(e)}") from e

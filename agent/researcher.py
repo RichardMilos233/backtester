@@ -13,7 +13,7 @@ You must output ONLY valid JSON matching the following schema:
   "params": {"<param_name>": <value>}
 }
 Rules:
-- momentum params: {"window": integer between 2 and 250}
+- momentum params: {"window": integer between 2 and 260 (e.g. 20, 50, 120, 252)}
 - macd params: {"fast": int, "slow": int, "signal_span": int} with 1 < fast < slow and signal_span > 1
 """
 
@@ -68,9 +68,28 @@ class Researcher:
         prompt = self._build_prompt(rejection_feedback)
         response_text = self.llm_client.generate(prompt, system_prompt=SYSTEM_PROMPT)
         
-        # Parse JSON
+        # Robustly extract and parse JSON (strip markdown fences if present)
         try:
-            data = json.loads(response_text)
+            text = response_text.strip()
+            if "```" in text:
+                # Strip markdown code blocks
+                lines = text.splitlines()
+                clean_lines = []
+                inside_block = False
+                for line in lines:
+                    if line.strip().startswith("```"):
+                        inside_block = not inside_block
+                        continue
+                    clean_lines.append(line)
+                text = "\n".join(clean_lines).strip()
+            
+            # Locate outer JSON braces
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end != -1:
+                text = text[start:end + 1]
+
+            data = json.loads(text)
             spec = StrategySpec.from_dict(data)
             spec.spec_id = f"{self.researcher_id}_iter_{self.proposal_count}"
             return spec

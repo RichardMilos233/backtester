@@ -15,8 +15,8 @@ class StrategySpec:
     def validate(self) -> Tuple[bool, str]:
         if self.signal_type == "momentum":
             window = self.params.get("window")
-            if not isinstance(window, int) or window <= 1 or window > 250:
-                return False, f"Invalid momentum window: {window}. Must be int in [2, 250]."
+            if not isinstance(window, int) or window <= 1 or window > 260:
+                return False, f"Invalid momentum window: {window}. Must be int in [2, 260]."
         elif self.signal_type == "macd":
             fast = self.params.get("fast")
             slow = self.params.get("slow")
