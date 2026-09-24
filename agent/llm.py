@@ -1,6 +1,7 @@
 import abc
 import json
 import random
+import time
 
 
 class BaseLLMClient(abc.ABC):
@@ -118,22 +119,35 @@ class OpenAICompatibleClient(BaseLLMClient):
             "temperature": self.temperature
         }
 
-        req = urllib.request.Request(
-            endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-            method="POST"
-        )
+        max_retries = 3
+        last_error = None
 
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                result = json.loads(resp.read().decode("utf-8"))
-                content = result["choices"][0]["message"]["content"]
-                # Clean up reasoning <think>...</think> tags if model is reasoning-based
-                cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
-                return cleaned_content
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"HTTPError {e.code}: {e.reason}\nBody: {error_body}") from e
-        except Exception as e:
-            raise RuntimeError(f"Failed to call LLM API: {str(e)}") from e
+        for attempt in range(max_retries):
+            try:
+                req = urllib.request.Request(
+                    endpoint,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=headers,
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    result = json.loads(resp.read().decode("utf-8"))
+                    content = result["choices"][0]["message"]["content"]
+                    # Clean up reasoning <think>...</think> tags if model is reasoning-based
+                    cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                    return cleaned_content
+            except urllib.error.HTTPError as e:
+                error_body = e.read().decode("utf-8", errors="replace")
+                last_error = RuntimeError(f"HTTPError {e.code}: {e.reason}\nBody: {error_body}")
+                if e.code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise last_error from e
+            except Exception as e:
+                last_error = RuntimeError(f"Failed to call LLM API: {str(e)}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise last_error from e
+
+        raise last_error or RuntimeError("Max retries exceeded")

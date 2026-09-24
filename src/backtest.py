@@ -1,3 +1,4 @@
+from typing import Optional
 import pandas as pd
 import numpy as np
 
@@ -15,11 +16,17 @@ class Backtest:
         self.commission_rate = commission_rate
         self.rebalance_tolerance = rebalance_tolerance
 
-    def run(self, data: pd.DataFrame, signals: pd.Series, dividend_events: pd.DataFrame,) -> pd.DataFrame:
+    def run(
+        self,
+        data: pd.DataFrame,
+        signals: pd.Series,
+        dividend_events: Optional[pd.DataFrame] = None,
+    ) -> pd.DataFrame:
         """
         运行回测引擎
         :param data: 行情 DataFrame，必须包含 'open' 和 'close'，索引为日期
         :param signals: 目标仓位权重 Series (0.0~1.0，支持连续权重与离散 0/1)，索引为日期
+        :param dividend_events: 分红事件 DataFrame (可选)，包含 'ex_date', 'pay_date', 'dividend_per_share'
         :return: 包含 6 大账本、摩擦成本、市场状态与日收益率的明细 DataFrame
         """
         target_signals = signals.shift(1)
@@ -27,7 +34,10 @@ class Backtest:
         current_position = 0
         prev_total_value = self.initial_capital
         records = []
-        events = dividend_events.set_index('ex_date')
+        if dividend_events is not None and not dividend_events.empty:
+            events = dividend_events.set_index('ex_date')
+        else:
+            events = pd.DataFrame()
         pending_dividends = {}
 
         for date in data.index:
@@ -36,7 +46,7 @@ class Backtest:
             signal = target_signals[date]
 
             dividend_accrued = 0.0
-            if date in events.index:
+            if not events.empty and date in events.index:
                 event = events.loc[date]
                 dividend_accrued = current_position * event['dividend_per_share']
                 pay_date = event['pay_date']
