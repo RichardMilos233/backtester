@@ -8,10 +8,12 @@ class Backtest:
         initial_capital: float = 100000.0,
         slippage_rate: float = 0.0005,
         commission_rate: float = 0.0005,
+        rebalance_tolerance: float = 0.05,
     ):
         self.initial_capital = initial_capital
         self.slippage_rate = slippage_rate
         self.commission_rate = commission_rate
+        self.rebalance_tolerance = rebalance_tolerance
 
     def run(self, data: pd.DataFrame, signals: pd.Series) -> pd.DataFrame:
         """
@@ -45,8 +47,11 @@ class Backtest:
                 target_value = v_open * signal
                 current_value = current_position * open_price
                 delta_value = target_value - current_value
+                drift_ratio = delta_value / v_open if v_open > 0 else 0.0
 
-                if delta_value > 0:
+                if abs(drift_ratio) < self.rebalance_tolerance:
+                    trade_shares = 0
+                elif delta_value > 0:
                     desired_buy = delta_value // cost_per_share
                     max_buy = current_cash // cost_per_share
                     trade_shares = max(0, min(desired_buy, max_buy))
