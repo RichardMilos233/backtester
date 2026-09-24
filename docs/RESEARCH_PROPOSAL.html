@@ -471,8 +471,8 @@
     </table>
 
     <div class="callout warning">
-      <span class="callout-title">关于防数据泄漏的硬性约束：</span>
-      进入 Validation / Test 分段时，为避免移动均线等指标开头出现 NaN，系统采用单向历史缓冲（Lookback Buffer）预热指标，计算完毕后严格按当前分段索引截取。<strong>严禁使用 <code>bfill</code>（反向倒灌未来数据），每段回测的初始资金（100,000 美元）与持仓独立重置</strong>，彻底切断跨时间段的资金串扰。
+      <span class="callout-title">关于因果隔离与真实账本结算的硬性约束：</span>
+      进入 Validation / Test 分段时，为避免移动均线等指标开头出现 NaN，系统采用单向历史缓冲（Lookback Buffer）预热指标，计算完毕后严格按当前分段索引截取。<strong>严禁使用 <code>bfill</code>（反向倒灌未来数据），每段回测的初始资金（100,000 美元）与持仓独立重置</strong>，彻底切断跨时间段的资金串扰。同时，回测全流程真实计提并结算标普 500 ETF 的历史季度现金分红（Cash Dividends），保留首日收益观察并对齐期数统计。
     </div>
 
     <h3>3.2 策略契约与沙盒执行机制</h3>
@@ -558,7 +558,7 @@
       <thead>
         <tr>
           <th>评测架构</th>
-          <th>Validation 夏普 (选择段)</th>
+          <th>Validation 夏普 (验证/选择段)</th>
           <th><strong>Test 封存测试段夏普 (Holdout)</strong></th>
           <th><strong>过拟合落差 (Overfit Gap)</strong></th>
           <th>测试段真实收益</th>
@@ -568,35 +568,35 @@
       <tbody>
         <tr>
           <td><strong>A: 手写基准</strong></td>
-          <td>0.3182</td>
-          <td><strong>0.1155</strong> (大幅衰退)</td>
-          <td><strong>+0.2026</strong> (严重衰减)</td>
-          <td>+2.33%</td>
+          <td>0.3693</td>
+          <td><strong>0.1466</strong> (大幅衰退)</td>
+          <td><strong>+0.2227</strong> (严重衰减)</td>
+          <td>+2.95%</td>
           <td>56 次 (摩擦损耗重)</td>
         </tr>
         <tr>
           <td><strong>B: 单智能体</strong></td>
-          <td>0.0927 ± 0.069</td>
-          <td><strong>1.1115 ± 0.110</strong></td>
-          <td>-1.0188 ± 0.170</td>
-          <td>+31.87%</td>
-          <td>14.2 次 (低频稳健)</td>
+          <td>0.1975 ± 0.016</td>
+          <td><strong>0.9898 ± 0.118</strong></td>
+          <td>-0.7923 ± 0.102</td>
+          <td>+29.77%</td>
+          <td>14.6 次 (低频稳健)</td>
         </tr>
         <tr>
           <td><strong>C: 审校协作</strong></td>
-          <td>0.1450 ± 0.182</td>
-          <td><strong>1.0169 ± 0.140</strong></td>
-          <td>-0.8719 ± 0.280</td>
-          <td>+28.51%</td>
-          <td><strong>11.8 次 (换手最低)</strong></td>
+          <td>0.2341 ± 0.115</td>
+          <td><strong>1.0812 ± 0.129</strong></td>
+          <td>-0.8471 ± 0.190</td>
+          <td>+31.95%</td>
+          <td><strong>14.2 次 (综合最优)</strong></td>
         </tr>
         <tr>
           <td><strong>D: 并行对抗</strong></td>
-          <td>0.1792 ± 0.137</td>
-          <td><strong>0.5979 ± 0.461</strong></td>
-          <td>-0.4187 ± 0.597</td>
-          <td>+17.62%</td>
-          <td>29.8 次</td>
+          <td>0.1527 ± 0.060</td>
+          <td><strong>0.9851 ± 0.179</strong></td>
+          <td>-0.8324 ± 0.194</td>
+          <td>+28.38%</td>
+          <td>22.0 次</td>
         </tr>
       </tbody>
     </table>
@@ -604,9 +604,9 @@
     <div class="callout success">
       <span class="callout-title">初步量化发现与现实启示：</span>
       <ol style="margin-left: 18px; margin-top: 6px;">
-        <li><strong>为什么手写基线在真实摩擦下失效？</strong> 经典 MACD 在测试段频繁开平仓 56 次，双边摩擦吞噬了近 30% 的利润，最终收益仅剩 2.33%。</li>
-        <li><strong>智能体为何在测试段跑出高夏普（~1.0）？</strong> 面对摩擦和波动率反馈，大模型自发收敛至中低频长周期趋势（如 100~150 天均线），交易次数大幅压缩 75% 以上，不仅成功度过了 2022-2024 年震荡市，更在 2024-2026 单边主升浪中几乎全程吃满趋势。</li>
-        <li><strong>Reviewer 的真实功用</strong>：在种子 44 中，当大模型企图提出同质的短均线时被 Reviewer 打回，促使模型自省探索出超大尺度宏观 MACD（50, 200, 100），在测试段实现 0.953 夏普且全段仅调仓 7 次，证明了审查机制能有效激发异质性与鲁棒性。</li>
+        <li><strong>为什么手写基线在真实摩擦下失效？</strong> 经典 MACD 在测试段频繁开平仓 56 次，双边摩擦吞噬了大部分收益，即便计入现金分红，最终测试段收益也仅有 2.95%，且出现了严重的样本外衰减（Gap 为 +0.2227）。</li>
+        <li><strong>智能体为何在测试段跑出稳健高夏普（~1.0）？</strong> 面对摩擦和波动率反馈，大模型自发收敛至中低频长周期趋势（如 100~260 天均线），交易次数大幅压缩 70% 以上（仅 14 次左右），不仅稳健度过了 2022-2024 年震荡市，更在 2024-2026 单边主升浪中几乎全程吃满趋势，测试段平均收益达 +30% 左右。</li>
+        <li><strong>Reviewer 审查协作（Framework C）的真实功用</strong>：在 5 组独立种子测试中，Framework C 表现最为均衡优异（平均测试夏普 1.0812，收益 +31.95%，最大回撤 -11.27%）。审查机制有效阻断了重复短视的平庸参数，引导智能体在更宽的参数与假说空间内进行有深度的自适应探索。</li>
       </ol>
     </div>
   </section>
