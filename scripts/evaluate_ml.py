@@ -41,6 +41,10 @@ def run_ml_evaluation(
     # 1. 加载数据并生成状态特征
     print("1. 加载数据并生成状态特征...")
     df = load_market_data(data_path)
+    dividend_events = pd.read_csv(
+        'data/SPY_dividends.csv',
+        parse_dates=['ex_date', 'pay_date'],
+    )
     df_reg = classify_market_regimes(df)
 
     # 2. 构建特征矩阵 X 与目标 y
@@ -78,7 +82,7 @@ def run_ml_evaluation(
     backtest_results = {}
     metrics_results = {}
     for name, sig in signals.items():
-        res = bt.run(df_test, sig)
+        res = bt.run(df_test, sig, dividend_events)
         backtest_results[name] = res
         metrics_results[name] = compute_strategy_metrics(res)
 

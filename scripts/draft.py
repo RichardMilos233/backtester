@@ -153,6 +153,11 @@ def main():
     df = load_market_data('data/SPY.csv')
     df = classify_market_regimes(df)
 
+    dividend_events = pd.read_csv(
+        'data/SPY_dividends.csv',
+        parse_dates=['ex_date', 'pay_date'],
+    )
+
     # 2. 生成当前选中的策略目标信号
     signals = my_strategy(df)
 
@@ -166,7 +171,7 @@ def main():
 
     # 4. 执行时序撮合与结算
     print("正在运行真实摩擦回测...")
-    res = bt.run(df, signals)
+    res = bt.run(df, signals, dividend_events)
 
     # 5. 打印策略体检报告
     metrics = compute_strategy_metrics(res)

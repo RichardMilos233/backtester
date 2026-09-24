@@ -6,7 +6,7 @@ def compute_strategy_metrics(
     risk_free_rate: float = 0.0
 ) -> pd.Series:
     T = 252
-    N = len(backtest_result)
+    N = len(backtest_result) - 1
     total_value = backtest_result['total_value']
     returns = total_value.pct_change()
     trade_shares = backtest_result['trade_shares']

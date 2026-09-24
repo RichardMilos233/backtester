@@ -15,7 +15,7 @@ class Backtest:
         self.commission_rate = commission_rate
         self.rebalance_tolerance = rebalance_tolerance
 
-    def run(self, data: pd.DataFrame, signals: pd.Series) -> pd.DataFrame:
+    def run(self, data: pd.DataFrame, signals: pd.Series, dividend_events: pd.DataFrame,) -> pd.DataFrame:
         """
         运行回测引擎
         :param data: 行情 DataFrame，必须包含 'open' 和 'close'，索引为日期
@@ -27,15 +27,29 @@ class Backtest:
         current_position = 0
         prev_total_value = self.initial_capital
         records = []
+        events = dividend_events.set_index('ex_date')
+        pending_dividends = {}
 
-        for date in data.index[1:]:
+        for date in data.index:
             open_price = data['open'][date]
             close_price = data['close'][date]
             signal = target_signals[date]
 
+            dividend_accrued = 0.0
+            if date in events.index:
+                event = events.loc[date]
+                dividend_accrued = current_position * event['dividend_per_share']
+                pay_date = event['pay_date']
+
+                pending_dividends[pay_date] = (
+                    pending_dividends.get(pay_date, 0.0) + dividend_accrued
+                )
+
+            dividend_receivable = sum(pending_dividends.values())
+
             # 每股采购综合成本预算（含滑点与手续费，严防资金穿仓）
             cost_per_share = open_price * (1 + self.slippage_rate) * (1 + self.commission_rate)
-            v_open = current_cash + current_position * open_price
+            v_open = current_cash + current_position * open_price + dividend_receivable
 
             # 目标仓位撮合逻辑（兼容 0/1 离散信号与 0.0~1.0 连续权重）
             if pd.isna(signal):
@@ -75,9 +89,17 @@ class Backtest:
             current_cash -= trade_shares * execution_price + commission
             current_position += trade_shares
 
+            dividend_paid = 0.0
+            for pay_date in list(pending_dividends):
+                if pay_date <= date:
+                    dividend_paid += pending_dividends.pop(pay_date)
+
+            current_cash += dividend_paid
+            dividend_receivable = sum(pending_dividends.values())
+
             # 收盘盯市结算（Mark to Market）
             asset_value = current_position * close_price
-            total_value = current_cash + asset_value
+            total_value = current_cash + asset_value + dividend_receivable
             pnl = total_value - prev_total_value
             prev_total_value = total_value
 
@@ -94,6 +116,9 @@ class Backtest:
                 'trade_shares': trade_shares,
                 'commission': commission,
                 'regime': data['regime'][date] if 'regime' in data.columns else None,
+                'dividend_accrued': dividend_accrued,
+                'dividend_paid': dividend_paid,
+                'dividend_receivable': dividend_receivable,
             })
 
         df_records = pd.DataFrame(records).set_index('date')
