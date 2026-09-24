@@ -18,6 +18,10 @@ from src.metrics import compute_strategy_metrics
 def run_baseline_analysis(data_path: str = 'data/SPY.csv', output_img: str = 'docs/baseline_performance.png'):
     print(f"Loading market data from {data_path}...")
     df = load_market_data(data_path)
+    dividend_events = pd.read_csv(
+        'data/SPY_dividends.csv',
+        parse_dates=['ex_date', 'pay_date'],
+    )
     
     initial_capital = 100000.0
     bt = Backtest(initial_capital=initial_capital)
@@ -25,19 +29,19 @@ def run_baseline_analysis(data_path: str = 'data/SPY.csv', output_img: str = 'do
     # 1. Buy & Hold Benchmark (Always Long)
     print("Running Buy & Hold benchmark...")
     sig_bh = (df['close'] > 0).astype(int)
-    res_bh = bt.run(df, sig_bh)
+    res_bh = bt.run(df, sig_bh, dividend_events)
     m_bh = compute_strategy_metrics(res_bh)
     
     # 2. SMA 50 Momentum Strategy
     print("Running SMA 50 strategy...")
     sig_ma = compute_moving_average_signal(df, window=50)
-    res_ma = bt.run(df, sig_ma)
+    res_ma = bt.run(df, sig_ma, dividend_events)
     m_ma = compute_strategy_metrics(res_ma)
     
     # 3. MACD (12, 26, 9) Strategy
     print("Running MACD (12, 26, 9) strategy...")
     sig_macd = compute_macd_signal(df, fast=12, slow=26, signal_span=9)
-    res_macd = bt.run(df, sig_macd)
+    res_macd = bt.run(df, sig_macd, dividend_events)
     m_macd = compute_strategy_metrics(res_macd)
     
     # 4. Print Summary Table

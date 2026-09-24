@@ -36,6 +36,10 @@ def run_final_evolution_comparison(
     # 1. 加载数据与市场状态
     print("1. 加载数据与市场状态...")
     df = load_market_data(data_path)
+    dividend_events = pd.read_csv(
+        'data/SPY_dividends.csv',
+        parse_dates=['ex_date', 'pay_date'],
+    )
     df_reg = classify_market_regimes(df)
 
     # 2. 训练机器学习模型 (严格在 2022-01-01 之前训练)
@@ -62,21 +66,21 @@ def run_final_evolution_comparison(
     
     # Gen 1: 朴素无摩擦基准 (0 手续费、0 滑点)
     bt_naive = Backtest(initial_capital=initial_cap, slippage_rate=0.0, commission_rate=0.0, rebalance_tolerance=0.0)
-    res_gen1 = bt_naive.run(df_test, sig_sma50_raw)
+    res_gen1 = bt_naive.run(df_test, sig_sma50_raw, dividend_events)
     
     # Gen 2: 真实摩擦基准 (万 5 手续费 + 万 5 滑点)
     bt_realistic = Backtest(initial_capital=initial_cap, slippage_rate=0.0005, commission_rate=0.0005, rebalance_tolerance=0.0)
-    res_gen2 = bt_realistic.run(df_test, sig_sma50_raw)
+    res_gen2 = bt_realistic.run(df_test, sig_sma50_raw, dividend_events)
     
     # Gen 3: 波动率自适应进阶版 (真实摩擦 + 5% 容忍带抗磨损)
     bt_vscaled = Backtest(initial_capital=initial_cap, slippage_rate=0.0005, commission_rate=0.0005, rebalance_tolerance=0.05)
-    res_gen3 = bt_vscaled.run(df_test, sig_vol_scaled)
+    res_gen3 = bt_vscaled.run(df_test, sig_vol_scaled, dividend_events)
     
     # Gen 4: 机器学习增强版 (Random Forest + 真实摩擦 + 容忍带)
-    res_gen4 = bt_vscaled.run(df_test, sig_rf)
+    res_gen4 = bt_vscaled.run(df_test, sig_rf, dividend_events)
     
     # Benchmark: Buy & Hold (真实摩擦)
-    res_bh = bt_realistic.run(df_test, sig_bh)
+    res_bh = bt_realistic.run(df_test, sig_bh, dividend_events)
 
     strategies = {
         'Buy & Hold (标普大盘)': res_bh,
