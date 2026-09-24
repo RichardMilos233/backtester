@@ -66,3 +66,20 @@ def compute_yearly_breakdown(res_strat: pd.DataFrame, res_bh: pd.DataFrame) -> p
             'trades': trades,
         })
     return pd.DataFrame(records).set_index('year')
+
+def _calc_regime_stats(group: pd.DataFrame) -> pd.Series:
+    ann_ret = group['return'].mean() * 252
+    ann_vol = group['return'].std() * (252 ** 0.5)
+    
+    return pd.Series({
+        'days': len(group),
+        'exposure': (group['position'] > 0).mean(),
+        'total_pnl': group['daily_pnl'].sum(),
+        'ann_return': ann_ret,
+        'ann_vol': ann_vol,
+        'sharpe': ann_ret / ann_vol if ann_vol > 0 else 0.0,
+        'trades': (group['trade_shares'] != 0).sum(),
+    })
+
+def compute_conditional_metrics(res: pd.DataFrame) -> pd.DataFrame:
+    return res.groupby('regime').apply(_calc_regime_stats)
