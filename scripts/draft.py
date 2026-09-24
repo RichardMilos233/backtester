@@ -123,7 +123,7 @@ def my_strategy(df: pd.DataFrame) -> pd.Series:
     直接注释 / 取消注释对应的一行 return 即可切换策略测试：
     """
     # [选项 1] 经典双均线动量 (SMA 20 > SMA 50)
-    return strategy_sma_cross(df, fast=20, slow=50)
+    # return strategy_sma_cross(df, fast=20, slow=50)
 
     # [选项 2] 经典 MACD 动能策略
     # return strategy_macd(df)
@@ -135,7 +135,7 @@ def my_strategy(df: pd.DataFrame) -> pd.Series:
     # return strategy_bollinger(df, window=20, num_std=2.0)
 
     # [选项 5] 纯机器学习：Random Forest 随机森林
-    # return strategy_ml_random_forest(df, split_date='2022-01-01')
+    return strategy_ml_random_forest(df, n_estimators=100, max_depth=4, split_date='2022-01-01')
 
     # [选项 6] 纯机器学习：Ridge 岭回归
     # return strategy_ml_ridge(df, split_date='2022-01-01')
