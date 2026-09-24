@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研究立项建议书：基于严格时序隔离与多智能体协作的 CTA 策略自动化研发与过拟合抑制</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-light: #3b82f6;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+      --emerald-700: #047857;
+      --emerald-50: #ecfdf5;
+      --amber-700: #b45309;
+      --amber-50: #fffbeb;
+      --rose-700: #be123c;
+      --rose-50: #fff1f2;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: var(--slate-50);
+      color: var(--slate-800);
+      line-height: 1.75;
+      font-size: 15px;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 56px 64px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+      border: 1px solid var(--slate-200);
+    }
+
+    /* Header styling */
+    .header {
+      border-bottom: 2px solid var(--slate-200);
+      padding-bottom: 28px;
+      margin-bottom: 36px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--slate-100);
+      color: var(--slate-700);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--slate-900);
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--slate-600);
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px dashed var(--slate-200);
+      font-size: 13px;
+      color: var(--slate-600);
+    }
+
+    .meta-item strong {
+      display: block;
+      color: var(--slate-900);
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    /* Section styling */
+    h2 {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-top: 40px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2 .sec-num {
+      color: var(--primary-light);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--slate-800);
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin-bottom: 16px;
+      color: var(--slate-700);
+      text-align: justify;
+    }
+
+    ul, ol {
+      margin-bottom: 16px;
+      padding-left: 24px;
+      color: var(--slate-700);
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    strong {
+      color: var(--slate-900);
+    }
+
+    /* Callout & Cards */
+    .callout {
+      padding: 18px 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-size: 14px;
+      line-height: 1.65;
+      border-left: 4px solid;
+    }
+
+    .callout.info {
+      background: var(--slate-50);
+      border-color: var(--primary-light);
+      color: var(--slate-800);
+    }
+
+    .callout.warning {
+      background: var(--amber-50);
+      border-color: var(--amber-700);
+      color: #92400e;
+    }
+
+    .callout.success {
+      background: var(--emerald-50);
+      border-color: var(--emerald-700);
+      color: #065f46;
+    }
+
+    .callout-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    /* Flow Diagrams & Grid Cards */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .card {
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--slate-900);
+      margin-bottom: 8px;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--slate-600);
+      margin-bottom: 0;
+      line-height: 1.6;
+    }
+
+    /* Diagram flow box */
+    .flow-box {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--slate-200);
+    }
+
+    th {
+      background: var(--slate-100);
+      color: var(--slate-800);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    tr:hover td {
+      background-color: var(--slate-50);
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    .tag-sm {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      margin: 24px 0 16px 12px;
+      padding-left: 24px;
+      border-left: 2px solid var(--slate-200);
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -31px;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      border: 2px solid #ffffff;
+    }
+
+    .timeline-item.done::before {
+      background: var(--emerald-700);
+    }
+
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+
+    .timeline-desc {
+      font-size: 13px;
+      color: var(--slate-600);
+    }
+
+    /* Print styling */
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+        font-size: 12pt;
+      }
+      .container {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      h2 {
+        break-after: avoid;
+      }
+      table, .flow-box, .callout {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Document Header -->
+  <header class="header">
+    <span class="badge">Research Project Proposal · 量化投研立项方案</span>
+    <h1>基于严格时序隔离与多智能体协作的 CTA 策略自动化研发与过拟合抑制框架</h1>
+    <div class="subtitle">
+      Automated CTA Strategy Discovery via Multi-Agent Systems on a Zero-Lookahead Backtesting Infrastructure
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>申请方向</strong>
+        AI for Quant / 智能体系统与量化金融
+      </div>
+      <div class="meta-item">
+        <strong>研究周期</strong>
+        6 ~ 8 周（目前核心内核已完成闭环）
+      </div>
+      <div class="meta-item">
+        <strong>核心方法</strong>
+        受控实验 / 时序物理隔离 / 多智能体审查
+      </div>
+      <div class="meta-item">
+        <strong>验证资产</strong>
+        标普 500 ETF (SPY) 12年日频全量行情
+      </div>
+    </div>
+  </header>
+
+  <!-- Executive Summary -->
+  <section>
+    <h2><span class="sec-num">01.</span> 立项背景与我们要解决的本质问题</h2>
+    <p>
+      在量化投资的实际研发流程中，初期的策略探索往往高度依赖量化分析师的人工经验：提出假设、试算参数、调整过滤条件、复盘账本。这一过程耗时冗长，且极度依赖直觉。随着大语言模型（LLM）的成熟，业内开始尝试引入大模型协助生成量化逻辑。然而，在现有公开实践与学术尝试中，普遍存在两大严重脱离实盘的弊端：
+    </p>
+    <ul>
+      <li>
+        <strong>痛点一：回测环境中的隐性作弊（Lookahead Bias & Frictionless Trap）</strong><br>
+        很多基于脚本的简易回测存在严重前视偏差（例如在 T 日收盘计算信号并在 T 日收盘价成交、中心化滚动均线、反向填补缺失值等）。更严重的是，模型生成的策略往往依赖高频次来回翻转来在样本内“刷出好看的夏普比率”，一旦计入真实的券商佣金和滑点磨损，策略净收益往往立刻崩溃甚至巨额亏损。
+      </li>
+      <li>
+        <strong>痛点二：大模型盲目搜索与无底线过拟合（Snooping & Hallucination）</strong><br>
+        直接让 LLM 自由手写 Python 回测代码，不仅语法报错频发，模型还会为了迎合目标函数，无意或恶意在测试集上调整参数。这种“假创新”在真实样本外（Out-of-Sample）面对未见过的市场时毫无抵御能力。
+      </li>
+    </ul>
+    <div class="callout info">
+      <span class="callout-title">本研究的核心问题（Research Question）</span>
+      如果我们<strong>彻底锁死底层的物理规则</strong>（严格无前视偏差、强制 T+1 开盘撮合、计入真实交易摩擦），并在<strong>数据流上做严格的 Train / Validation / Test 物理隔离</strong>，那么通过构建由“研究员（Researcher）”与“审查员（Reviewer）”组成的多智能体框架，能否让大模型在受限参数空间内，自主迭代出<strong>低换手、强抗摩擦、在真实样本外依然具备稳健表现</strong>的有效策略？
+    </div>
+  </section>
+
+  <!-- Objectives -->
+  <section>
+    <h2><span class="sec-num">02.</span> 项目研究目标 (Specific Objectives)</h2>
+    <p>
+      本项目不追求花哨的 AI 叙事，力求在真实的工程约束下实现可复现、可度量的量化闭环，具体目标包括三项：
+    </p>
+    <div class="card-grid">
+      <div class="card">
+        <h4>1. 搭建透明无黑盒的因果回测基座</h4>
+        <p>基于原生 Python/Pandas 构建纯面向对象回测引擎，物理锁死 T+1 撮合与 10bps 双边摩擦，实现现金、持仓、市值、权益、盈亏与手续费 6 大账本闭环结算，杜绝任何数据穿透可能。</p>
+      </div>
+      <div class="card">
+        <h4>2. 设计受控的 Agent 基础设施</h4>
+        <p>不让大模型直接写易错的 Python 代码，而是制定规范的 <code>StrategySpec</code> 契约；通过 Evaluator 将大模型提出的量化假设翻译为可执行信号，屏蔽跨段未来信息。</p>
+      </div>
+      <div class="card">
+        <h4>3. 科学度量智能体拓扑与过拟合</h4>
+        <p>在固定相同 LLM 智力基准下，对比单智能体（Solo）、双智能体审校（Reviewer Gate）及并行对抗（Dual-Agent）等组织形态在抑制过拟合落差（Overfitting Gap）上的客观效果。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technical Approach -->
+  <section>
+    <h2><span class="sec-num">03.</span> 具体实施方案与技术架构 (Methodology)</h2>
+    <p>
+      本系统划分为两层：底层的<strong>客观量化物理环境（Native Engine）</strong>与上层的<strong>智能体科研层（Agent Infra）</strong>。两者通过强类型的 <code>StrategySpec</code> 契约单向交互，底层对上层透明但不可篡改。
+    </p>
+
+    <div class="flow-box">
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Agent 决策与认知探索层 (Agent Infra)                  │
+│   [Researcher (LLM)] ──(提出假说与参数)──> [Reviewer (前置审查门禁)]      │
+│           ▲                                          │                 │
+│           │ 反馈指标 (Sharpe, MDD, Turnover)           │ 合规 Spec 契约  │
+│           └──────────────────────────┐               ▼                 │
+│                                      │   [StrategyEvaluator 沙盒]      │
+│                                      │       │ 翻译为 signals 序列      │
+│                                      │       ▼ (严格按时序切片)         │
+├──────────────────────────────────────┼─────────────────────────────────┤
+│                   底层量化物理环境 (Deterministic Engine)               │
+│                                      │   [Backtest Engine]             │
+│                                      │       │ T+1 开盘价成交           │
+│                                      │       │ 单边万五滑点 + 佣金      │
+│                                      │       │ 资金防穿仓预算约束       │
+│                                      └────── [metrics.py 绩效统计]      │
+└────────────────────────────────────────────────────────────────────────┘
+    </div>
+
+    <h3>3.1 严格因果的三段式时序隔离 (Train / Val / Test)</h3>
+    <p>
+      为彻底杜绝大模型“作弊”或“先看答案再答题”，我们将 12 年的标普 500（SPY 2015-2026）日频行情做物理切割：
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>数据分段 (Split)</th>
+          <th>对应时间跨度</th>
+          <th>样本量</th>
+          <th>主要宏观市场特征</th>
+          <th>访问权限与使用规则</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Train (训练/搜索段)</strong></td>
+          <td>2015-01 至 2022-01</td>
+          <td>1,765 天 (60%)</td>
+          <td>低利率慢牛，偶发事件性熔断</td>
+          <td><strong>仅供 Researcher 反复试错</strong>。大模型只能看到该段的回测反馈。</td>
+        </tr>
+        <tr>
+          <td><strong>Validation (验证/选择段)</strong></td>
+          <td>2022-01 至 2024-05</td>
+          <td>588 天 (20%)</td>
+          <td>美联储激进加息熊市，宽幅拉锯震荡</td>
+          <td><strong>大模型完全不可见</strong>。仅由协调器在迭代收尾时客观挑出胜出策略。</td>
+        </tr>
+        <tr>
+          <td><strong>Test (封存测试段)</strong></td>
+          <td>2024-05 至 2026-09</td>
+          <td>590 天 (20%)</td>
+          <td>降息预期与科技股单边主升浪</td>
+          <td><strong>绝对保密，全局仅运行一次</strong>。只在最终定稿后用于审计真实泛化表现。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warning">
+      <span class="callout-title">关于防数据泄漏的硬性约束：</span>
+      进入 Validation / Test 分段时，为避免移动均线等指标开头出现 NaN，系统采用单向历史缓冲（Lookback Buffer）预热指标，计算完毕后严格按当前分段索引截取。<strong>严禁使用 <code>bfill</code>（反向倒灌未来数据），每段回测的初始资金（100,000 美元）与持仓独立重置</strong>，彻底切断跨时间段的资金串扰。
+    </div>
+
+    <h3>3.2 策略契约与沙盒执行机制</h3>
+    <p>
+      大模型不直接接触 Pandas 代码，其输出必须且仅能遵循结构化 JSON 数据规范（<code>StrategySpec</code>）：
+    </p>
+    <ul>
+      <li><code>signal_type</code>：允许尝试的基础动量或震荡逻辑（如 <code>momentum</code> 均线突破、<code>macd</code> 差离值）；</li>
+      <li><code>params</code>：受约束的参数区间（如 <code>window ∈ [2, 260]</code>）；</li>
+      <li><code>hypothesis</code>：模型必须用一段金融逻辑文本解释其调整参数的微观动机；</li>
+      <li><code>allowed_regimes</code>：允许交易的市场量价象限（Q1~Q4，用于后续市场感知过滤）。</li>
+    </ul>
+
+    <h3>3.3 前置审查员（Reviewer）的防御门禁</h3>
+    <p>
+      在任何策略进入回测引擎之前，必须通过 Reviewer 的三道检查，未通过则直接打回并扣除尝试次数：
+    </p>
+    <ol>
+      <li><strong>参数边界强校验</strong>：过滤快线大于慢线等荒谬输入；</li>
+      <li><strong>历史策略去重（Deduplication）</strong>：比对历史尝试库，阻止大模型原地打转或提出同质参数；</li>
+      <li><strong>假说完整性检查</strong>：剔除空泛无实际经济学依据的随机构想。</li>
+    </ol>
+  </section>
+
+  <!-- Experimental Design -->
+  <section>
+    <h2><span class="sec-num">04.</span> 实验设计与控制变量矩阵</h2>
+    <p>
+      为评估 Agent Infra 的真实有效性，实验严格控制单一变量，对比四种宏观架构（Topologies）：
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>实验架构代号</th>
+          <th>组织形态 (Topology)</th>
+          <th>智能体配置</th>
+          <th>验证的核心科研假说</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Framework A</strong></td>
+          <td>手写经典基准 (Baseline)</td>
+          <td>无 AI，固定经典参数 (SMA50, MACD)</td>
+          <td>作为传统被动量化参考线。</td>
+        </tr>
+        <tr>
+          <td><strong>Framework B</strong></td>
+          <td>单智能体探索 (Solo Researcher)</td>
+          <td>单 Researcher，无 Reviewer，FIFO 记忆</td>
+          <td>测试大模型在单兵作战、仅凭简单反馈时的探索效率与是否会过拟合。</td>
+        </tr>
+        <tr>
+          <td><strong>Framework C</strong></td>
+          <td>双智能体协作 (Researcher + Reviewer)</td>
+          <td>增加中心化前置审查拦截与反省反馈</td>
+          <td><strong>核心关注</strong>：前置质检能否有效遏制无效搜索，逼迫大模型寻找更有泛化力的策略？</td>
+        </tr>
+        <tr>
+          <td><strong>Framework D</strong></td>
+          <td>多智能体并行对抗 (Dual Researcher)</td>
+          <td>两个 Researcher 独立并行提出，统一挑优</td>
+          <td>测试分流搜索预算、并行竞争是否比单兵深挖更具性价比。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout info">
+      <span class="callout-title">严密的控制变量原则（Controlled Variables）：</span>
+      所有实验组统一使用相同的底层大模型（<code>deepseek-chat</code>）、相同的温度参数（<code>0.7</code>）、相同的单边 5bps 摩擦、相同的 3 段数据切分，并在 <strong>5 组独立随机种子（Seed 42 ~ 46）</strong> 下重复运行，报告均值与标准差，彻底消除偶然单次跑分带来的偏差。
+    </div>
+  </section>
+
+  <!-- Preliminary Results -->
+  <section>
+    <h2><span class="sec-num">05.</span> 初步验证与可行性证据 (Proof of Concept)</h2>
+    <p>
+      我们已在本地完整搭建了整套环境，并调用实际大模型接口完成了第一阶段基准评测。初步实证数据揭示了极具价值的结论：
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>评测架构</th>
+          <th>Validation 夏普 (选择段)</th>
+          <th><strong>Test 封存测试段夏普 (Holdout)</strong></th>
+          <th><strong>过拟合落差 (Overfit Gap)</strong></th>
+          <th>测试段真实收益</th>
+          <th>测试段交易次数</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>A: 手写基准</strong></td>
+          <td>0.3182</td>
+          <td><strong>0.1155</strong> (大幅衰退)</td>
+          <td><strong>+0.2026</strong> (严重衰减)</td>
+          <td>+2.33%</td>
+          <td>56 次 (摩擦损耗重)</td>
+        </tr>
+        <tr>
+          <td><strong>B: 单智能体</strong></td>
+          <td>0.0927 ± 0.069</td>
+          <td><strong>1.1115 ± 0.110</strong></td>
+          <td>-1.0188 ± 0.170</td>
+          <td>+31.87%</td>
+          <td>14.2 次 (低频稳健)</td>
+        </tr>
+        <tr>
+          <td><strong>C: 审校协作</strong></td>
+          <td>0.1450 ± 0.182</td>
+          <td><strong>1.0169 ± 0.140</strong></td>
+          <td>-0.8719 ± 0.280</td>
+          <td>+28.51%</td>
+          <td><strong>11.8 次 (换手最低)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>D: 并行对抗</strong></td>
+          <td>0.1792 ± 0.137</td>
+          <td><strong>0.5979 ± 0.461</strong></td>
+          <td>-0.4187 ± 0.597</td>
+          <td>+17.62%</td>
+          <td>29.8 次</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout success">
+      <span class="callout-title">初步量化发现与现实启示：</span>
+      <ol style="margin-left: 18px; margin-top: 6px;">
+        <li><strong>为什么手写基线在真实摩擦下失效？</strong> 经典 MACD 在测试段频繁开平仓 56 次，双边摩擦吞噬了近 30% 的利润，最终收益仅剩 2.33%。</li>
+        <li><strong>智能体为何在测试段跑出高夏普（~1.0）？</strong> 面对摩擦和波动率反馈，大模型自发收敛至中低频长周期趋势（如 100~150 天均线），交易次数大幅压缩 75% 以上，不仅成功度过了 2022-2024 年震荡市，更在 2024-2026 单边主升浪中几乎全程吃满趋势。</li>
+        <li><strong>Reviewer 的真实功用</strong>：在种子 44 中，当大模型企图提出同质的短均线时被 Reviewer 打回，促使模型自省探索出超大尺度宏观 MACD（50, 200, 100），在测试段实现 0.953 夏普且全段仅调仓 7 次，证明了审查机制能有效激发异质性与鲁棒性。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Limitations & Scope -->
+  <section>
+    <h2><span class="sec-num">06.</span> 研究边界与客观局限性声明</h2>
+    <p>
+      为保持学术与工业研究的严谨性，本提案主动界定以下局限与假设：
+    </p>
+    <ul>
+      <li><strong>资产覆盖范围</strong>：当前实证以单品种（标普 500 ETF SPY）日频数据为核心。未来拓展方向为全市场多品种多资产配置。</li>
+      <li><strong>策略搜索空间</strong>：当前阶段重点考核动量突破、MACD 与波动率调节的参数化假说，尚未开放任意 Python 代码的无限制编写，以确保因果时序和语法的绝对稳定。</li>
+      <li><strong>计算与 API 成本控制</strong>：多智能体实验涉及反复的大模型调用，我们将探索预算硬性限制在每轮 4~8 次，并配合完全确定性的 MockLLM 基准以控制开销。</li>
+    </ul>
+  </section>
+
+  <!-- Milestones & Plan -->
+  <section>
+    <h2><span class="sec-num">07.</span> 阶段计划与预期产出物 (Milestones & Deliverables)</h2>
+    
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="timeline-title">阶段一：量化因果回测引擎与全套账本构建（已完成）</div>
+        <div class="timeline-desc">实现 T+1 开盘撮合、防穿仓现金预算、滑点佣金、四象限市场状态划分及条件收益计算。</div>
+      </div>
+      <div class="timeline-item done">
+        <div class="timeline-title">阶段二：模块化 Agent Infra 骨架搭建与真实 LLM 调通（已完成）</div>
+        <div class="timeline-desc">构建 Spec 契约、三段物理隔离 Evaluator、统一 LLM Client、Reviewer 门禁与 Orchestrator，跑通 5 种子对比脚本。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-title">阶段三：深入消融实验与机制增强（当前推进）</div>
+        <div class="timeline-desc">实现 SOTA 历史最优记忆置顶锚点；引入信号序列相关性（Signal Correlation &lt; 0.95）高级排重机制；评估其对过拟合抑制的贡献。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-title">阶段四：多市场状态过滤与波动率缩放整合（终期交付）</div>
+        <div class="timeline-desc">向 Agent 开放市场状态（Regime）与自适应波动率缩放字段，完成横向综合评估并整理产出学术/工业级结项报告与交互展示看板。</div>
+      </div>
+    </div>
+
+    <h3>预期最终交付物清单：</h3>
+    <ul>
+      <li><strong>可执行开源代码库</strong>：包含完全原生解耦的 <code>src/</code> 回测内核、<code>agent/</code> 基础设施及完备的 <code>pytest</code> 单元测试集；</li>
+      <li><strong>实验复现脚本集</strong>：支持一键运行 A/B/C/D 拓扑对比与单变量消融，自动输出标准统计大表；</li>
+      <li><strong>最终实证报告与可视化看板</strong>：包含详实的跨种子统计数据表、净值曲线走势图及交互式 Canvas 分析看板。</li>
+    </ul>
+  </section>
+
+</div>
+
+</body>
+</html>
