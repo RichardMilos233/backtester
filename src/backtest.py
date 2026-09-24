@@ -24,7 +24,6 @@ class Backtest:
         current_cash = self.initial_capital
         current_position = 0
         prev_total_value = self.initial_capital
-        prev_signal = np.nan
         records = []
 
         for date in data.index[1:]:
@@ -41,9 +40,6 @@ class Backtest:
                 trade_shares = 0
             elif signal == 0:
                 trade_shares = -current_position
-            elif signal == prev_signal:
-                # 目标权重未发生变化，保持现有股数（避免漂移产生无谓摩擦换手）
-                trade_shares = 0
             else:
                 # 目标权重发生调整（加仓、减仓或建仓）
                 target_value = v_open * signal
@@ -60,7 +56,6 @@ class Backtest:
                 else:
                     trade_shares = 0
 
-            prev_signal = signal
 
             # 实际执行价格计算（考虑买卖方向滑点）
             if trade_shares > 0:
