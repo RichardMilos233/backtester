@@ -797,9 +797,82 @@
     </div>
   </section>
 
+  <!-- Future Architectural Paradigms & Experimental Roadmap -->
+  <section>
+    <h2><span class="sec-num">06.</span> 主流智能体范式借鉴与后续拓展实验路线 (Roadmap & Architectural Paradigms)</h2>
+    <p>
+      在完成阶段一的宏观拓扑对比后，为进一步探究如何帮助大模型在有限试错预算下抑制过拟合、提出真正具备金融经济学支撑的有效策略，我们系统梳理了当前学术界与工业界成熟的六大智能体设计范式，并结合本项目的原生量化内核，设计了以下可落地、可度量的单变量消融实验方向：
+    </p>
+
+    <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+      <div class="card">
+        <h4>1. SOTA 锚定与经验外脑 (Memory-Augmented)</h4>
+        <p><strong>机制：</strong>放弃易丢失全局优胜解的朴素先进先出（FIFO）遗忘队列，在提示词中永久置顶“历史全局表现最优策略（SOTA）”，同时记录高换手或大回撤的“失败禁区”。<br>
+        <strong>实验设计：</strong>对比普通滑动记忆 vs. SOTA 锚点记忆，验证锚定基准能否杜绝智能体在多轮迭代后期原地打转或目标迷失。</p>
+      </div>
+      <div class="card">
+        <h4>2. 语言反思自省闭环 (Reflexion / Self-Refine)</h4>
+        <p><strong>机制：</strong>不单单把夏普比率等数字指标喂给大模型，而是强制模型在收到回测账本后输出一段 100 字左右的结构化复盘备忘录，诊断亏损原因并带入下一轮推理。<br>
+        <strong>实验设计：</strong>对比“纯数字反馈” vs. “数字 + 自然语言反思日志”，评估引入因果推演对降低试错轮数与压缩换手率的贡献。</p>
+      </div>
+      <div class="card">
+        <h4>3. 分层调度与交替优化 (Hierarchical Co-Optimization)</h4>
+        <p><strong>机制：</strong>借鉴微软 RD-Agent 的分层思想。上层调度器（轻量启发式或多臂老虎机）负责决定“本轮优化均线信号、市场状态过滤还是波动率缩放比例”；下层专职产出参数。<br>
+        <strong>实验设计：</strong>对比单一大脑混合调参 vs. 上下层解耦交替优化，评估在多维度参数空间下的收敛稳定性与可解释性。</p>
+      </div>
+      <div class="card">
+        <h4>4. 角色分工专业流水线 (SOP Role Specialization)</h4>
+        <p><strong>机制：</strong>参考软件工程标准作业程序（SOP），将投研任务拆分为“宏观环境分析员（识别当前市场状态 Regime）”、“择时策略研究员”与“风控合规官（专抓换手与杠杆违规）”。<br>
+        <strong>实验设计：</strong>测试多角色提示词解耦是否比单一综合 Researcher 更少出现逻辑混乱和回测透支。</p>
+      </div>
+      <div class="card">
+        <h4>5. 思维树与启发式剪枝 (Tree of Thoughts / LATS)</h4>
+        <p><strong>机制：</strong>放弃线性串行循环，采用树状推演。单轮分叉出若干不同类型的假说原型（如长周期动量、短周期突破、MACD），在训练集初步打分后剪除无效分支，仅保留优势节点深挖。<br>
+        <strong>实验设计：</strong>在相同调用预算下，对比 8 轮串行探索 vs. 2×4 树状分支搜索的最终策略夏普分布与多样性。</p>
+      </div>
+      <div class="card">
+        <h4>6. 多智能体对抗辩论 (Multi-Agent Debate)</h4>
+        <p><strong>机制：</strong>设立“进攻派研究员”与专门翻找历史至暗时刻（如 2020 年熔断、2022 年加息）的“压力测试审校员”，二者相互辩驳后由仲裁器做最终裁决。<br>
+        <strong>实验设计：</strong>测试对抗辩论机制是否比单一规则审核更有力地削减最极端尾部风险（Tail Risk）。</p>
+      </div>
+    </div>
+
+    <h3>后续实验优先级路线图 (Implementation Priority)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>推进批次</th>
+          <th>实验切入点</th>
+          <th>主要涉及模块</th>
+          <th>预期验证目标</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>第一优先级 (低门槛高收益)</strong></td>
+          <td><strong>SOTA 锚定记忆 + 信号序列相关性去重</strong></td>
+          <td><code>agent/researcher.py</code><br><code>agent/reviewer.py</code></td>
+          <td>锁定历史最优基准，并阻断信号相关性 &ge; 0.95 的同质化策略，逼出真正的异质假说。</td>
+        </tr>
+        <tr>
+          <td><strong>第二优先级 (深入语义反馈)</strong></td>
+          <td><strong>Reflexion 结构化自省复盘</strong></td>
+          <td><code>agent/researcher.py</code><br><code>agent/llm.py</code></td>
+          <td>验证加入语言因果自省后，大模型能否在更少轮次内理解市场状态并主动降频调仓。</td>
+        </tr>
+        <tr>
+          <td><strong>第三优先级 (结合 Session 6-8)</strong></td>
+          <td><strong>分层调度：信号与波动率缩放协同优化</strong></td>
+          <td><code>agent/orchestrator.py</code><br><code>src/signals.py</code></td>
+          <td>将主干新增的 Q1~Q4 象限过滤与波动率缩放开放为独立优化臂，实现真正的复合策略组合。</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
   <!-- Limitations & Scope -->
   <section>
-    <h2><span class="sec-num">06.</span> 研究边界与客观局限性声明</h2>
+    <h2><span class="sec-num">07.</span> 研究边界与客观局限性声明</h2>
     <p>
       为保持学术与工业研究的严谨性，本提案主动界定以下局限与假设：
     </p>
@@ -812,24 +885,24 @@
 
   <!-- Milestones & Plan -->
   <section>
-    <h2><span class="sec-num">07.</span> 阶段计划与预期产出物 (Milestones & Deliverables)</h2>
+    <h2><span class="sec-num">08.</span> 阶段计划与预期产出物 (Milestones & Deliverables)</h2>
     
     <div class="timeline">
       <div class="timeline-item done">
         <div class="timeline-title">阶段一：量化因果回测引擎与全套账本构建（已完成）</div>
-        <div class="timeline-desc">实现 T+1 开盘撮合、防穿仓现金预算、滑点佣金、四象限市场状态划分及条件收益计算。</div>
+        <div class="timeline-desc">实现 T+1 开盘撮合、防穿仓现金预算、滑点佣金、四象限市场状态划分、现金分红结算及条件收益计算。</div>
       </div>
       <div class="timeline-item done">
         <div class="timeline-title">阶段二：模块化 Agent Infra 骨架搭建与真实 LLM 调通（已完成）</div>
         <div class="timeline-desc">构建 Spec 契约、三段物理隔离 Evaluator、统一 LLM Client、Reviewer 门禁与 Orchestrator，跑通 5 种子对比脚本。</div>
       </div>
       <div class="timeline-item">
-        <div class="timeline-title">阶段三：深入消融实验与机制增强（当前推进）</div>
-        <div class="timeline-desc">实现 SOTA 历史最优记忆置顶锚点；引入信号序列相关性（Signal Correlation &lt; 0.95）高级排重机制；评估其对过拟合抑制的贡献。</div>
+        <div class="timeline-title">阶段三：机制消融与智能体进阶实验（当前推进）</div>
+        <div class="timeline-desc">实现 SOTA 历史最优记忆置顶锚点；引入信号序列相关性（Signal Correlation &lt; 0.95）高级排重机制；接入 Reflexion 语言复盘备忘录。</div>
       </div>
       <div class="timeline-item">
-        <div class="timeline-title">阶段四：多市场状态过滤与波动率缩放整合（终期交付）</div>
-        <div class="timeline-desc">向 Agent 开放市场状态（Regime）与自适应波动率缩放字段，完成横向综合评估并整理产出学术/工业级结项报告与交互展示看板。</div>
+        <div class="timeline-title">阶段四：多市场状态过滤与分层调度协同（终期交付）</div>
+        <div class="timeline-desc">向 Agent 开放市场状态（Regime）与自适应波动率缩放字段，实现分层多臂协同优化，完成横向综合评估并整理产出最终报告与可视化看板。</div>
       </div>
     </div>
 
