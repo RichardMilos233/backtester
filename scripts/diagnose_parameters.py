@@ -15,26 +15,22 @@ from src.backtest import Backtest
 from src.metrics import compute_strategy_metrics
 
 
-def run_parameter_sweep(data_path: str = 'data/SPY.csv', output_img: str = 'docs/parameter_sweep.png'):
-    print(f"Loading data from {data_path}...")
-    df = load_market_data(data_path)
-    dividend_events = pd.read_csv(
-        'data/SPY_dividends.csv',
-        parse_dates=['ex_date', 'pay_date'],
-    )
+def run_parameter_sweep(ticker: str = 'SPY', output_img: str = 'docs/parameter_sweep.png'):
+    print(f"Loading data for {ticker}...")
+    df = load_market_data(ticker)
     bt = Backtest(initial_capital=100000.0)
     
     results = {}
     
     # 0. Benchmark: Buy & Hold
     sig_bh = (df['close'] > 0).astype(int)
-    results['Buy & Hold'] = compute_strategy_metrics(bt.run(df, sig_bh, dividend_events))
+    results['Buy & Hold'] = compute_strategy_metrics(bt.run(df, sig_bh))
     
     # 1. SMA Parameter Sweep
     sma_windows = [10, 20, 50, 100, 200]
     for w in sma_windows:
         sig = compute_moving_average_signal(df, window=w)
-        res = bt.run(df, sig, dividend_events)
+        res = bt.run(df, sig)
         results[f'SMA {w}'] = compute_strategy_metrics(res)
         
     # 2. MACD Parameter Sweep
@@ -46,7 +42,7 @@ def run_parameter_sweep(data_path: str = 'data/SPY.csv', output_img: str = 'docs
     ]
     for fast, slow, span, name in macd_configs:
         sig = compute_macd_signal(df, fast=fast, slow=slow, signal_span=span)
-        res = bt.run(df, sig, dividend_events)
+        res = bt.run(df, sig)
         results[name] = compute_strategy_metrics(res)
         
     summary_df = pd.DataFrame(results).T
