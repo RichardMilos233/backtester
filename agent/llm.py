@@ -151,3 +151,58 @@ class OpenAICompatibleClient(BaseLLMClient):
                 raise last_error from e
 
         raise last_error or RuntimeError("Max retries exceeded")
+
+
+def get_llm_client(
+    model: str = "deepseek-chat",
+    seed: int = 42,
+    temperature: float = 0.7,
+    timeout: float = 60.0
+) -> BaseLLMClient:
+    """
+    Unified factory for LLM clients.
+    Returns deterministic MockLLMClient when model='mock', otherwise connects
+    to OpenAI-compatible gateway using credentials from environment or .env file.
+    """
+    if model == "mock":
+        return MockLLMClient(seed=seed)
+
+    import os
+    from pathlib import Path
+
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    base_url = os.environ.get("OPENAI_BASE_URL", "") or os.environ.get("AI_PROXY_BASE_URL", "")
+
+    # Lazy-load .env if env vars are unset
+    if not api_key:
+        candidate_paths = [
+            Path(".env"),
+            Path(__file__).resolve().parents[1] / ".env",
+        ]
+        for p in candidate_paths:
+            if p.exists():
+                with open(p, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k = k.strip()
+                            v = v.strip().strip("'\"")
+                            if k not in os.environ:
+                                os.environ[k] = v
+                break
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        base_url = os.environ.get("OPENAI_BASE_URL", "") or os.environ.get("AI_PROXY_BASE_URL", "")
+
+    if not base_url:
+        base_url = "https://api.openai.com/v1"
+    elif "amberainsider" in base_url and not base_url.endswith("/v1"):
+        base_url = f"{base_url}/v1"
+
+    return OpenAICompatibleClient(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        temperature=temperature,
+        timeout=timeout
+    )

@@ -32,3 +32,22 @@ def test_mock_llm_reacts_to_rejection():
     assert "Revised proposal" in parsed["hypothesis"]
     if parsed["signal_type"] == "momentum":
         assert parsed["params"]["window"] > 1
+
+
+def test_get_llm_client_mock():
+    from agent.llm import get_llm_client, MockLLMClient
+    client = get_llm_client("mock", seed=123)
+    assert isinstance(client, MockLLMClient)
+    assert client.seed == 123
+
+
+def test_get_llm_client_real_env(monkeypatch):
+    from agent.llm import get_llm_client, OpenAICompatibleClient
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-12345")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.example.com/v1")
+    client = get_llm_client("claude-sonnet-4-6")
+    assert isinstance(client, OpenAICompatibleClient)
+    assert client.model == "claude-sonnet-4-6"
+    assert client.api_key == "test-key-12345"
+    assert client.base_url == "https://api.example.com/v1"
+
