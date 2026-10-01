@@ -29,9 +29,13 @@ class Researcher:
         self.researcher_id = researcher_id
         self.memory: List[Dict[str, Any]] = []
         self.proposal_count = 0
+        self.last_parse_failed = False
 
-    def update_memory(self, spec: StrategySpec, metrics: Dict[str, Any]):
-        self.memory.append({"spec": spec, "metrics": metrics})
+    def update_memory(self, spec: StrategySpec, metrics: Dict[str, Any], reflection: Optional[str] = None):
+        entry = {"spec": spec, "metrics": metrics}
+        if reflection:
+            entry["reflection"] = reflection
+        self.memory.append(entry)
         if len(self.memory) > self.memory_length:
             self.memory.pop(0)
 
@@ -47,10 +51,13 @@ class Researcher:
             for item in self.memory:
                 spec = item["spec"]
                 metrics = item["metrics"]
-                prompt_lines.append(
+                line = (
                     f"- Spec {spec.spec_id} ({spec.signal_type}, {spec.params}): "
                     f"Metrics: {metrics}"
                 )
+                if "reflection" in item:
+                    line += f" | Reflection: {item['reflection']}"
+                prompt_lines.append(line)
 
         if rejection_feedback:
             prompt_lines.append(
@@ -92,12 +99,16 @@ class Researcher:
             data = json.loads(text)
             spec = StrategySpec.from_dict(data)
             spec.spec_id = f"{self.researcher_id}_iter_{self.proposal_count}"
+            spec.is_fallback = False
+            self.last_parse_failed = False
             return spec
         except Exception as e:
             # Fallback safe spec if LLM fails formatting
+            self.last_parse_failed = True
             return StrategySpec(
                 spec_id=f"{self.researcher_id}_iter_{self.proposal_count}",
                 hypothesis=f"Fallback baseline due to parsing exception: {str(e)}",
                 signal_type="momentum",
-                params={"window": 50}
+                params={"window": 50},
+                is_fallback=True
             )

@@ -47,3 +47,30 @@ def test_reviewer_allows_duplicates_when_flag_true():
     result = reviewer.review(spec2, history=[spec1])
     assert result.passed is True
     assert result.reason == ""
+
+
+def test_reviewer_correlation_gate():
+    import numpy as np
+    import pandas as pd
+    from agent.evaluator import StrategyEvaluator
+
+    dates = pd.date_range("2020-01-01", periods=200, freq="B")
+    np.random.seed(42)
+    prices = 100 + np.cumsum(np.random.randn(200))
+    df = pd.DataFrame({
+        "open": prices,
+        "high": prices + 1,
+        "low": prices - 1,
+        "close": prices,
+        "volume": 1000000
+    }, index=dates)
+    evaluator = StrategyEvaluator(df)
+    reviewer = Reviewer(check_correlation=True, correlation_threshold=0.90, evaluator=evaluator)
+
+    spec1 = StrategySpec("s1", "SMA 50 baseline", "momentum", {"window": 50})
+    spec2 = StrategySpec("s2", "SMA 51 nearly identical", "momentum", {"window": 51})
+
+    res = reviewer.review(spec2, history=[spec1])
+    assert res.passed is False
+    assert "High signal correlation" in res.reason
+

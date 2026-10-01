@@ -38,3 +38,16 @@ def test_researcher_rolling_memory():
     assert len(researcher.memory) == 2
     assert researcher.memory[0]["spec"].spec_id == "s_2"
     assert researcher.memory[-1]["spec"].spec_id == "s_3"
+
+def test_researcher_fallback_flag_on_invalid_json():
+    from agent.llm import BaseLLMClient
+    class BadLLM(BaseLLMClient):
+        def generate(self, prompt: str, system_prompt: str = "") -> str:
+            return "This is completely malformed text and definitely not JSON."
+
+    researcher = Researcher(BadLLM(), researcher_id="bad_res")
+    spec = researcher.propose()
+    assert spec.is_fallback is True
+    assert researcher.last_parse_failed is True
+    assert "Fallback baseline due to parsing exception" in spec.hypothesis
+
