@@ -10,9 +10,9 @@ from agent.config import ExperimentConfig
 from agent.evaluator import StrategyEvaluator
 from agent.orchestrator import StrategyOrchestrator
 
-def run_multi_seed_experiment(data_path: str = "data/SPY.csv", seeds=(42, 43, 44, 45, 46)):
-    print(f"Loading data from {data_path}...")
-    df = load_market_data(data_path)
+def run_multi_seed_experiment(ticker: str = "SPY", seeds=(42, 43, 44, 45, 46)):
+    print(f"Loading data for {ticker}...")
+    df = load_market_data(ticker)
     evaluator = StrategyEvaluator(df)
 
     frameworks = ["A", "B", "C", "D"]

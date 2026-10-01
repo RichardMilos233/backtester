@@ -57,7 +57,7 @@ def run_benchmark():
             temperature=0.7
         )
 
-    df = load_market_data("data/SPY.csv")
+    df = load_market_data('SPY')
     evaluator = StrategyEvaluator(df)
 
     frameworks = ["A", "B", "C", "D"]

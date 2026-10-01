@@ -16,40 +16,39 @@ from src.metrics import compute_strategy_metrics
 
 
 def run_agent_strategy_evaluation(
-    data_path: str = "data/SPY.csv",
+    ticker: str = "SPY",
     output_img: str = "docs/agent_strategy_performance.png"
 ):
-    print(f"Loading market data from {data_path}...")
-    df = load_market_data(data_path)
-    dividend_events = pd.read_csv('data/SPY_dividends.csv', parse_dates=['ex_date', 'pay_date']) if os.path.exists('data/SPY_dividends.csv') else None
+    print(f"Loading market data for {ticker}...")
+    df = load_market_data(ticker)
     initial_capital = 100000.0
     bt = Backtest(initial_capital=initial_capital)
 
     # 1. Benchmarks & Baselines
     print("Running 1. Buy & Hold benchmark (SPY)...")
     sig_bh = (df['close'] > 0).astype(int)
-    res_bh = bt.run(df, sig_bh, dividend_events)
+    res_bh = bt.run(df, sig_bh)
     m_bh = compute_strategy_metrics(res_bh)
 
     print("Running 2. Baseline SMA 50...")
     sig_ma50 = compute_moving_average_signal(df, window=50)
-    res_ma50 = bt.run(df, sig_ma50, dividend_events)
+    res_ma50 = bt.run(df, sig_ma50)
     m_ma50 = compute_strategy_metrics(res_ma50)
 
     print("Running 3. Baseline MACD (12, 26, 9)...")
     sig_macd = compute_macd_signal(df, fast=12, slow=26, signal_span=9)
-    res_macd = bt.run(df, sig_macd, dividend_events)
+    res_macd = bt.run(df, sig_macd)
     m_macd = compute_strategy_metrics(res_macd)
 
     # 2. Agent Proposals
     print("Running 4. Agent Winning Strategy: SMA 120 (DeepSeek-Chat)...")
     sig_agent_120 = compute_moving_average_signal(df, window=120)
-    res_agent_120 = bt.run(df, sig_agent_120, dividend_events)
+    res_agent_120 = bt.run(df, sig_agent_120)
     m_agent_120 = compute_strategy_metrics(res_agent_120)
 
     print("Running 5. Agent Long-term Strategy: SMA 252 (Claude Sonnet 4.6)...")
     sig_agent_252 = compute_moving_average_signal(df, window=252)
-    res_agent_252 = bt.run(df, sig_agent_252, dividend_events)
+    res_agent_252 = bt.run(df, sig_agent_252)
     m_agent_252 = compute_strategy_metrics(res_agent_252)
 
     # Summary Table

@@ -14,19 +14,11 @@ class StrategyEvaluator:
         df: pd.DataFrame,
         split_config: Optional[DataSplitConfig] = None,
         initial_capital: float = 100000.0,
-        dividend_events: Optional[pd.DataFrame] = None,
     ):
         self.df = df.sort_index()
         self.split_config = split_config or DataSplitConfig()
         self.split_config.validate()
         self.initial_capital = initial_capital
-        if dividend_events is None and os.path.exists("data/SPY_dividends.csv"):
-            try:
-                self.dividend_events = pd.read_csv("data/SPY_dividends.csv", parse_dates=["ex_date", "pay_date"])
-            except Exception:
-                self.dividend_events = None
-        else:
-            self.dividend_events = dividend_events
         self._search_df, self._select_df, self._test_df = self._create_splits()
 
     def _create_splits(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -89,7 +81,7 @@ class StrategyEvaluator:
 
         data_slice, signals = self._generate_signals_for_split(spec, split_df)
         bt = Backtest(initial_capital=self.initial_capital)
-        bt_result = bt.run(data_slice, signals, dividend_events=self.dividend_events)
+        bt_result = bt.run(data_slice, signals)
         metrics_series = compute_strategy_metrics(bt_result)
 
         metrics_dict = metrics_series.to_dict()
