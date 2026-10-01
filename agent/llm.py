@@ -145,6 +145,7 @@ class OpenAICompatibleClient(BaseLLMClient):
                 raise last_error from e
             except Exception as e:
                 last_error = RuntimeError(f"Failed to call LLM API: {str(e)}")
+                # Retry on socket timeouts or connection drops
                 if attempt < max_retries - 1:
                     time.sleep(2 * (attempt + 1))
                     continue
@@ -157,7 +158,7 @@ def get_llm_client(
     model: str = "deepseek-chat",
     seed: int = 42,
     temperature: float = 0.7,
-    timeout: float = 60.0
+    timeout: float = 90.0
 ) -> BaseLLMClient:
     """
     Unified factory for LLM clients.

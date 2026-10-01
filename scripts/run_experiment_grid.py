@@ -26,10 +26,13 @@ from agent.grid import ExperimentGridRunner
 
 
 DEFAULT_PHASE1_MODELS = [
-    "deepseek-chat",
-    "claude-sonnet-4-6",
-    "gpt-5.6-terra",
-    "glm-5",
+    # Top Tier Frontier Models available & active on Gateway
+    "gpt-5.6-sol",        # OpenAI Flagship Sol variant
+    "claude-opus-4-8",    # Anthropic Flagship Opus
+    "claude-sonnet-5",    # Anthropic Sonnet 5
+    "glm-5.3",            # Zhipu GLM Latest
+    "gemini-3-flash",     # Google Gemini 3 series
+    "deepseek-chat",      # High-speed baseline
 ]
 
 DEFAULT_PHASE2_INFRAS = [
