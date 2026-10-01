@@ -4,7 +4,11 @@ import pandas as pd
 
 from agent.spec import StrategySpec
 from agent.config import DataSplitConfig
-from src.signals import compute_moving_average_signal, compute_macd_signal
+from src.signals import (
+    compute_moving_average_signal,
+    compute_macd_signal,
+    compute_volatility_scaled_signal,
+)
 from src.backtest import Backtest
 from src.metrics import compute_strategy_metrics
 
@@ -61,8 +65,21 @@ class StrategyEvaluator:
                 signal_span=spec.params["signal_span"]
             )
         
-        # Slice signal strictly for the target split
-        split_signal = full_signal.loc[split_df.index].fillna(0).astype(int)
+        if spec.use_vol_scaling:
+            if "rolling_vol" not in warmup_df.columns:
+                warmup_df = warmup_df.copy()
+                warmup_df["rolling_vol"] = warmup_df["close"].pct_change().rolling(20).std() * (252 ** 0.5)
+            full_signal = compute_volatility_scaled_signal(
+                warmup_df,
+                full_signal,
+                target_vol=spec.vol_target if spec.vol_target is not None else 0.15,
+                max_leverage=spec.max_leverage,
+            )
+
+        if not spec.use_vol_scaling:
+            split_signal = full_signal.loc[split_df.index].fillna(0).astype(int)
+        else:
+            split_signal = full_signal.loc[split_df.index].fillna(0).astype(float)
         return split_df, split_signal
 
     def evaluate_spec(self, spec: StrategySpec, split_name: str) -> Dict[str, Any]:

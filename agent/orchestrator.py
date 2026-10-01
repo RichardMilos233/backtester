@@ -1,3 +1,4 @@
+import json
 from typing import Callable, Dict, Any, List, Optional
 
 from agent.config import ExperimentConfig
@@ -21,17 +22,40 @@ class StrategyOrchestrator:
         self.evaluated_specs: List[StrategySpec] = []
         self.search_results: List[Dict[str, Any]] = []
 
+        # Process tracking metrics
+        self.total_proposals: int = 0
+        self.parse_failures: int = 0
+        self.reviewer_rejections: int = 0
+
+    @property
+    def budget(self) -> int:
+        return getattr(self.config, "max_backtests", 8)
+
+    @property
+    def max_proposals(self) -> int:
+        multiplier = getattr(self.config, "max_proposals_multiplier", 3)
+        return self.budget * multiplier
+
     def run(self) -> Dict[str, Any]:
-        if self.config.framework_type == "A":
+        fw = self.config.framework_type
+        if fw == "A":
             return self._run_framework_a()
-        elif self.config.framework_type == "B":
+        elif fw == "B":
             return self._run_framework_b()
-        elif self.config.framework_type == "C":
+        elif fw == "C":
             return self._run_framework_c()
-        elif self.config.framework_type == "D":
+        elif fw == "D":
             return self._run_framework_d()
+        elif fw == "C-sota":
+            return self._run_framework_c_sota()
+        elif fw == "C-corr":
+            return self._run_framework_c_corr()
+        elif fw == "C-reflect":
+            return self._run_framework_c_reflect()
+        elif fw == "C-hier":
+            return self._run_framework_c_hier()
         else:
-            raise ValueError(f"Unknown framework_type {self.config.framework_type}")
+            raise ValueError(f"Unknown framework_type {fw}")
 
     def _run_framework_a(self) -> Dict[str, Any]:
         """Framework A: Handwritten Baseline (no agent search)."""
@@ -40,6 +64,7 @@ class StrategyOrchestrator:
             StrategySpec("baseline_macd", "Classic MACD", "macd", {"fast": 12, "slow": 26, "signal_span": 9}),
         ]
         for spec in baselines:
+            self.total_proposals += 1
             res = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
             self.evaluated_specs.append(spec)
             self.search_results.append(res)
@@ -49,17 +74,22 @@ class StrategyOrchestrator:
         """Framework B: Single Researcher, No Reviewer."""
         client = self.llm_client_factory(self.config.seed)
         researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_b")
-        
-        for iteration in range(self.config.max_iterations):
+
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            self.total_proposals += 1
             spec = researcher.propose()
+            if getattr(spec, "is_fallback", False) or researcher.last_parse_failed:
+                self.parse_failures += 1
+
             is_valid, _ = spec.validate()
             if not is_valid:
                 continue
+
             metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
             researcher.update_memory(spec, metrics)
             self.evaluated_specs.append(spec)
             self.search_results.append(metrics)
-            
+
             if self._check_early_stop():
                 break
 
@@ -70,16 +100,20 @@ class StrategyOrchestrator:
         client = self.llm_client_factory(self.config.seed)
         researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_c")
         reviewer = Reviewer(allow_duplicates=False)
-        
+
         rejection_reason = None
-        for iteration in range(self.config.max_iterations):
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            self.total_proposals += 1
             spec = researcher.propose(rejection_feedback=rejection_reason)
+            if getattr(spec, "is_fallback", False) or researcher.last_parse_failed:
+                self.parse_failures += 1
+
             review_result = reviewer.review(spec, self.evaluated_specs)
-            
             if not review_result.passed:
+                self.reviewer_rejections += 1
                 rejection_reason = review_result.reason
                 continue
-            
+
             rejection_reason = None
             metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
             researcher.update_memory(spec, metrics)
@@ -97,17 +131,203 @@ class StrategyOrchestrator:
         client2 = self.llm_client_factory(self.config.seed + 1000)
         res1 = Researcher(client1, memory_length=self.config.memory_length, researcher_id="res_d1")
         res2 = Researcher(client2, memory_length=self.config.memory_length, researcher_id="res_d2")
-        
-        for iteration in range(self.config.max_iterations // 2):
-            for res_agent in (res1, res2):
-                spec = res_agent.propose()
-                is_valid, _ = spec.validate()
-                if not is_valid:
-                    continue
-                metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
-                res_agent.update_memory(spec, metrics)
-                self.evaluated_specs.append(spec)
-                self.search_results.append(metrics)
+
+        agents = [res1, res2]
+        idx = 0
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            current_res = agents[idx % 2]
+            idx += 1
+            self.total_proposals += 1
+
+            spec = current_res.propose()
+            if getattr(spec, "is_fallback", False) or current_res.last_parse_failed:
+                self.parse_failures += 1
+
+            is_valid, _ = spec.validate()
+            if not is_valid:
+                continue
+
+            metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
+            current_res.update_memory(spec, metrics)
+            self.evaluated_specs.append(spec)
+            self.search_results.append(metrics)
+
+        return self._finalize_selection_and_test()
+
+    def _run_framework_c_sota(self) -> Dict[str, Any]:
+        """Framework C-sota: Researcher + Reviewer, with SOTA Anchor in Memory."""
+        client = self.llm_client_factory(self.config.seed)
+        researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_sota")
+        reviewer = Reviewer(allow_duplicates=False)
+
+        best_score = -float("inf")
+        best_anchor_spec: Optional[StrategySpec] = None
+        best_anchor_metrics: Optional[Dict[str, Any]] = None
+
+        rejection_reason = None
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            self.total_proposals += 1
+            spec = researcher.propose(rejection_feedback=rejection_reason)
+            if getattr(spec, "is_fallback", False) or researcher.last_parse_failed:
+                self.parse_failures += 1
+
+            review_result = reviewer.review(spec, self.evaluated_specs)
+            if not review_result.passed:
+                self.reviewer_rejections += 1
+                rejection_reason = review_result.reason
+                continue
+
+            rejection_reason = None
+            metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
+            self.evaluated_specs.append(spec)
+            self.search_results.append(metrics)
+
+            score = metrics.get(self.config.selection_metric, -999.0)
+            if score > best_score:
+                best_score = score
+                best_anchor_spec = spec
+                best_anchor_metrics = metrics
+
+            # Regular update
+            researcher.update_memory(spec, metrics)
+
+            # Enforce SOTA pinning at index 0
+            if best_anchor_spec is not None and len(researcher.memory) > 0:
+                if researcher.memory[0]["spec"].spec_id != best_anchor_spec.spec_id:
+                    researcher.memory.insert(0, {"spec": best_anchor_spec, "metrics": best_anchor_metrics})
+                    if len(researcher.memory) > researcher.memory_length:
+                        researcher.memory.pop(1)
+
+            if self._check_early_stop():
+                break
+
+        return self._finalize_selection_and_test()
+
+    def _run_framework_c_corr(self) -> Dict[str, Any]:
+        """Framework C-corr: Researcher + Reviewer with Signal Correlation Gate."""
+        client = self.llm_client_factory(self.config.seed)
+        researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_corr")
+        reviewer = Reviewer(
+            allow_duplicates=False,
+            check_correlation=True,
+            correlation_threshold=self.config.correlation_threshold,
+            evaluator=self.evaluator
+        )
+
+        rejection_reason = None
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            self.total_proposals += 1
+            spec = researcher.propose(rejection_feedback=rejection_reason)
+            if getattr(spec, "is_fallback", False) or researcher.last_parse_failed:
+                self.parse_failures += 1
+
+            review_result = reviewer.review(spec, self.evaluated_specs)
+            if not review_result.passed:
+                self.reviewer_rejections += 1
+                rejection_reason = review_result.reason
+                continue
+
+            rejection_reason = None
+            metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
+            researcher.update_memory(spec, metrics)
+            self.evaluated_specs.append(spec)
+            self.search_results.append(metrics)
+
+            if self._check_early_stop():
+                break
+
+        return self._finalize_selection_and_test()
+
+    def _run_framework_c_reflect(self) -> Dict[str, Any]:
+        """Framework C-reflect: Researcher + Reviewer with Post-Hoc Reflexion Log."""
+        client = self.llm_client_factory(self.config.seed)
+        researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_reflect")
+        reviewer = Reviewer(allow_duplicates=False)
+
+        rejection_reason = None
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            self.total_proposals += 1
+            spec = researcher.propose(rejection_feedback=rejection_reason)
+            if getattr(spec, "is_fallback", False) or researcher.last_parse_failed:
+                self.parse_failures += 1
+
+            review_result = reviewer.review(spec, self.evaluated_specs)
+            if not review_result.passed:
+                self.reviewer_rejections += 1
+                rejection_reason = review_result.reason
+                continue
+
+            rejection_reason = None
+            metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
+
+            # Generate reflection from LLM
+            prompt = (
+                f"Strategy {spec.spec_id} ({spec.signal_type}, {spec.params}) achieved Sharpe: "
+                f"{metrics.get('sharpe_ratio')}, Total Return: {metrics.get('total_return')}, "
+                f"MaxDD: {metrics.get('max_drawdown')}. "
+                f"In 1 sentence, explain why this parameter set performed well or poorly."
+            )
+            reflection = client.generate(prompt)
+            researcher.update_memory(spec, metrics, reflection=reflection.strip())
+
+            self.evaluated_specs.append(spec)
+            self.search_results.append(metrics)
+
+            if self._check_early_stop():
+                break
+
+        return self._finalize_selection_and_test()
+
+    def _run_framework_c_hier(self) -> Dict[str, Any]:
+        """Framework C-hier: Hierarchical Search (Core Indicator alternating with Volatility Scaling)."""
+        client = self.llm_client_factory(self.config.seed)
+        researcher = Researcher(client, memory_length=self.config.memory_length, researcher_id="res_hier")
+        reviewer = Reviewer(allow_duplicates=False)
+
+        rejection_reason = None
+        vol_targets = [0.10, 0.12, 0.15, 0.18]
+
+        while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
+            self.total_proposals += 1
+            step = len(self.evaluated_specs)
+
+            # Odd step: optimize volatility scaling on current best candidate if one exists
+            if step > 0 and step % 2 == 1:
+                # Find current best spec on search set
+                metric = self.config.selection_metric
+                best_idx = max(range(len(self.search_results)), key=lambda i: self.search_results[i].get(metric, -999.0))
+                base_spec = self.evaluated_specs[best_idx]
+
+                vol_target = vol_targets[(step // 2) % len(vol_targets)]
+                spec = StrategySpec(
+                    spec_id=f"{base_spec.spec_id}_vol_{int(vol_target*100)}",
+                    hypothesis=f"Hierarchical vol-scaling on {base_spec.spec_id} with target {vol_target}",
+                    signal_type=base_spec.signal_type,
+                    params=dict(base_spec.params),
+                    use_vol_scaling=True,
+                    vol_target=vol_target,
+                    max_leverage=1.5
+                )
+            else:
+                # Even step: propose core strategy
+                spec = researcher.propose(rejection_feedback=rejection_reason)
+                if getattr(spec, "is_fallback", False) or researcher.last_parse_failed:
+                    self.parse_failures += 1
+
+            review_result = reviewer.review(spec, self.evaluated_specs)
+            if not review_result.passed:
+                self.reviewer_rejections += 1
+                rejection_reason = review_result.reason
+                continue
+
+            rejection_reason = None
+            metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
+            researcher.update_memory(spec, metrics)
+            self.evaluated_specs.append(spec)
+            self.search_results.append(metrics)
+
+            if self._check_early_stop():
+                break
 
         return self._finalize_selection_and_test()
 
@@ -115,7 +335,6 @@ class StrategyOrchestrator:
         if len(self.search_results) < self.config.patience + 1:
             return False
         metric = self.config.selection_metric
-        # Safe: if metric is missing from any result, do not early-stop on zeros
         if any(metric not in r for r in self.search_results):
             return False
         recent = [r[metric] for r in self.search_results[-self.config.patience:]]
@@ -127,29 +346,30 @@ class StrategyOrchestrator:
     def _finalize_selection_and_test(self) -> Dict[str, Any]:
         """
         Selection Gate: Evaluate all search candidates strictly on the selection set.
-        Pick single best candidate.
+        Pick single best candidate (excluding fallbacks if valid candidates exist).
         Holdout Test: Evaluate ONLY the winning candidate on the test set.
         """
         if not self.evaluated_specs:
-            # Fallback baseline if all rejected
-            fallback = StrategySpec("fallback", "Default SMA 50", "momentum", {"window": 50})
+            fallback = StrategySpec("fallback", "Default SMA 50", "momentum", {"window": 50}, is_fallback=True)
             self.evaluated_specs.append(fallback)
             self.search_results.append(
                 self.evaluator.evaluate_search(fallback, self.config.feedback_metrics)
             )
 
-        # Index-align search metrics with evaluated specs
         search_by_spec_id = {
             spec.spec_id: metrics
             for spec, metrics in zip(self.evaluated_specs, self.search_results)
         }
 
+        # Filter out fallbacks from selection if any legitimate candidates exist
+        non_fallbacks = [s for s in self.evaluated_specs if not getattr(s, "is_fallback", False)]
+        candidates_to_score = non_fallbacks if non_fallbacks else self.evaluated_specs
+
         selection_scores = []
-        for spec in self.evaluated_specs:
+        for spec in candidates_to_score:
             sel_metrics = self.evaluator.evaluate_selection(spec)
             selection_scores.append((sel_metrics.get(self.config.selection_metric, -999.0), spec, sel_metrics))
 
-        # Sort descending
         selection_scores.sort(key=lambda x: x[0], reverse=True)
         best_score, best_spec, best_sel_metrics = selection_scores[0]
         search_metrics = search_by_spec_id.get(best_spec.spec_id, {})
@@ -163,11 +383,16 @@ class StrategyOrchestrator:
         return {
             "framework_type": self.config.framework_type,
             "seed": self.config.seed,
+            "model": getattr(self.config, "model", "mock"),
             "total_candidates": len(self.evaluated_specs),
+            "total_proposals": self.total_proposals,
+            "parse_failures": self.parse_failures,
+            "reviewer_rejections": self.reviewer_rejections,
+            "actual_backtests": len(self.evaluated_specs),
             "best_spec": best_spec.to_dict(),
             "search_metrics": search_metrics,
             "selection_metrics": best_sel_metrics,
             "test_metrics": test_metrics,
             "overfitting_gap": overfitting_gap,
-            "search_candidates_count": len(self.evaluated_specs)
+            "search_candidates_count": len(self.evaluated_specs),
         }
