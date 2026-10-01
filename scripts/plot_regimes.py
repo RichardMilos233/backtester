@@ -8,8 +8,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import pandas as pd
-import numpy as np
 
 # Configure Chinese font support for macOS
 plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'Heiti SC', 'sans-serif']
@@ -19,9 +17,9 @@ from src.data import load_market_data
 from src.regimes import classify_market_regimes
 
 
-def plot_market_regimes(data_path: str = 'data/SPY.csv', output_img: str = 'docs/market_regimes.png'):
-    print(f"Loading data from {data_path}...")
-    df = load_market_data(data_path)
+def plot_market_regimes(ticker: str = 'SPY', output_img: str = 'docs/market_regimes.png'):
+    print(f"Loading data for {ticker}...")
+    df = load_market_data(ticker)
     df_reg = classify_market_regimes(df)
     
     # Filter to valid regime period

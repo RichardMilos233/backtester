@@ -14,7 +14,7 @@ from src.data import load_market_data
 from src.regimes import classify_market_regimes
 from src.backtest import Backtest
 from src.metrics import compute_strategy_metrics
-from src.signals import compute_moving_average_signal, compute_macd_signal, compute_volatility_scaled_signal
+from src.signals import compute_macd_signal, compute_volatility_scaled_signal
 from src.ml import prepare_ml_features, train_test_split_by_date, train_model_and_get_signals
 
 
@@ -68,7 +68,7 @@ def strategy_bollinger(df: pd.DataFrame, window: int = 20, num_std: float = 2.0)
 # --- [策略 5] 纯机器学习：Random Forest 随机森林预测 ---
 def strategy_ml_random_forest(df: pd.DataFrame, split_date: str = '2022-01-01', n_estimators: int = 100, max_depth: int = 3) -> pd.Series:
     """随机森林：用 split_date 之前的数据训练多棵树，样本外预测明日收益率，预测 > 0 做多"""
-    X, y = prepare_ml_features(df, target_type='continuous')
+    X, y = prepare_ml_features(df)
     X_train, X_test, y_train, y_test = train_test_split_by_date(X, y, split_date=split_date)
     
     rf = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
@@ -82,7 +82,7 @@ def strategy_ml_random_forest(df: pd.DataFrame, split_date: str = '2022-01-01', 
 # --- [策略 6] 纯机器学习：Ridge 岭回归预测 ---
 def strategy_ml_ridge(df: pd.DataFrame, split_date: str = '2022-01-01', alpha: float = 10.0) -> pd.Series:
     """Ridge L2 正则化回归：抗共线性，样本外预测明日收益率，预测 > 0 做多"""
-    X, y = prepare_ml_features(df, target_type='continuous')
+    X, y = prepare_ml_features(df)
     X_train, X_test, y_train, y_test = train_test_split_by_date(X, y, split_date=split_date)
     
     ridge = Ridge(alpha=alpha)
@@ -150,13 +150,8 @@ def my_strategy(df: pd.DataFrame) -> pd.Series:
 def main():
     # 1. 加载数据 (自动计算收益率与市场状态)
     print("正在加载数据与市场状态...")
-    df = load_market_data('data/SPY.csv')
+    df = load_market_data('SPY')
     df = classify_market_regimes(df)
-
-    dividend_events = pd.read_csv(
-        'data/SPY_dividends.csv',
-        parse_dates=['ex_date', 'pay_date'],
-    )
 
     # 2. 生成当前选中的策略目标信号
     signals = my_strategy(df)
@@ -171,7 +166,7 @@ def main():
 
     # 4. 执行时序撮合与结算
     print("正在运行真实摩擦回测...")
-    res = bt.run(df, signals, dividend_events)
+    res = bt.run(df, signals)
 
     # 5. 打印策略体检报告
     metrics = compute_strategy_metrics(res)

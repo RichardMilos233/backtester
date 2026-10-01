@@ -8,7 +8,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 
 # Configure Chinese font support for macOS
 plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'Heiti SC', 'sans-serif']
@@ -30,7 +29,7 @@ from src.ml import (
 
 
 def run_ml_evaluation(
-    data_path: str = 'data/SPY.csv', 
+    ticker: str = 'SPY',
     split_date: str = '2022-01-01',
     output_img: str = 'docs/ml_evaluation.png'
 ):
@@ -40,16 +39,12 @@ def run_ml_evaluation(
 
     # 1. 加载数据并生成状态特征
     print("1. 加载数据并生成状态特征...")
-    df = load_market_data(data_path)
-    dividend_events = pd.read_csv(
-        'data/SPY_dividends.csv',
-        parse_dates=['ex_date', 'pay_date'],
-    )
+    df = load_market_data(ticker)
     df_reg = classify_market_regimes(df)
 
     # 2. 构建特征矩阵 X 与目标 y
     print("2. 构建纯特征矩阵 X 与目标 y (预测明日收益率)...")
-    X, y = prepare_ml_features(df_reg, target_type='continuous')
+    X, y = prepare_ml_features(df_reg)
 
     # 3. 严格按时间切分：样本内训练集 (In-Sample) vs 样本外测试集 (Out-of-Sample)
     X_train, X_test, y_train, y_test = train_test_split_by_date(X, y, split_date=split_date)
@@ -82,7 +77,7 @@ def run_ml_evaluation(
     backtest_results = {}
     metrics_results = {}
     for name, sig in signals.items():
-        res = bt.run(df_test, sig, dividend_events)
+        res = bt.run(df_test, sig)
         backtest_results[name] = res
         metrics_results[name] = compute_strategy_metrics(res)
 

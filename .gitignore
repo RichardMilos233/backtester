@@ -28,3 +28,10 @@ htmlcov/
 # Course Documents / PDFs (keep local only)
 *.pdf
 docs/*.pdf
+
+# Local datasets / OHLCV data (keep local only, do not push to GitHub)
+data/ohlcv_daily/
+data/ohlcv/
+ohlcv_daily/
+ohlcv/
+

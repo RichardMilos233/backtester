@@ -8,8 +8,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import pandas as pd
-import numpy as np
 
 # Configure Chinese font support for macOS
 plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'Heiti SC', 'sans-serif']
@@ -19,9 +17,9 @@ from src.data import load_market_data
 from src.regimes import classify_market_regimes
 
 
-def generate_quadrant_guide(data_path: str = 'data/SPY.csv', output_img: str = 'docs/regime_quadrant_diagram.png'):
-    print(f"Loading data from {data_path}...")
-    df = load_market_data(data_path)
+def generate_quadrant_guide(ticker: str = 'SPY', output_img: str = 'docs/regime_quadrant_diagram.png'):
+    print(f"Loading data for {ticker}...")
+    df = load_market_data(ticker)
     df_reg = classify_market_regimes(df)
     valid_df = df_reg[df_reg['regime'].notna()].copy()
     
@@ -117,16 +115,22 @@ def generate_quadrant_guide(data_path: str = 'data/SPY.csv', output_img: str = '
     # ----------------------------------------------------
     # Scatter points colored by regime
     color_map = {
-        'Q1': ('#d95f02', 'Q1: 高量高波 (806天)'),
-        'Q2': ('#e7298a', 'Q2: 低量高波 (414天)'),
-        'Q3': ('#7570b3', 'Q3: 低量低波 (1132天)'),
-        'Q4': ('#238b45', 'Q4: 高量低波 (320天)'),
+        'Q1': ('#d95f02', '高量高波'),
+        'Q2': ('#e7298a', '低量高波'),
+        'Q3': ('#7570b3', '低量低波'),
+        'Q4': ('#238b45', '高量低波'),
     }
-    
-    for q_id, (col, label) in color_map.items():
+
+    for q_id, (col, name) in color_map.items():
         sub = valid_df[valid_df['regime'] == q_id]
-        ax2.scatter(sub['rolling_volume'] / 1e6, sub['rolling_vol'] * 100,
-                    c=col, s=20, alpha=0.5, label=label)
+        ax2.scatter(
+            sub['rolling_volume'] / 1e6,
+            sub['rolling_vol'] * 100,
+            c=col,
+            s=20,
+            alpha=0.5,
+            label=f'{q_id}: {name} ({len(sub)}天)',
+        )
         
     # Dividing median lines for visual orientation
     med_vol = valid_df['rolling_vol'].median() * 100
@@ -146,7 +150,9 @@ def generate_quadrant_guide(data_path: str = 'data/SPY.csv', output_img: str = '
     
     ax2.set_xlabel('平滑成交量 (Rolling 20D Volume, 百万股)', fontsize=11)
     ax2.set_ylabel('年化波动率 (Rolling 20D Volatility, %)', fontsize=11)
-    ax2.set_title(f"标普 500 (SPY 2016-2026) 历史实证相平面分布", fontsize=13, fontweight='bold', pad=15)
+    start = valid_df.index.min().year
+    end = valid_df.index.max().year
+    ax2.set_title(f'{ticker} {start}-{end} 历史实证相平面分布', fontsize=13, fontweight='bold', pad=15)
     ax2.grid(True, linestyle=':', alpha=0.5)
     ax2.legend(loc='upper right', frameon=True, fontsize=10)
     
