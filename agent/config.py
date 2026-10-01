@@ -15,10 +15,18 @@ class DataSplitConfig:
             raise ValueError("All split ratios must be positive numbers")
         return True
 
+ALLOWED_FRAMEWORKS = (
+    "A", "B", "C", "D",
+    "C-sota", "C-corr", "C-reflect", "C-hier"
+)
+
 @dataclass
 class ExperimentConfig:
-    framework_type: str = "B"           # "A": Baseline, "B": Researcher-only, "C": Researcher+Reviewer, "D": Dual-Researcher
-    max_iterations: int = 10            # Stop condition: max iterations
+    framework_type: str = "B"           # Allowed: A, B, C, D, C-sota, C-corr, C-reflect, C-hier
+    model: str = "mock"                 # Foundation model name or "mock"
+    max_iterations: int = 10            # Stop condition: max iterations (legacy)
+    max_backtests: int = 8              # Fair budget: max evaluated backtests on search set
+    max_proposals_multiplier: int = 3   # Safety limit: max proposals = max_backtests * multiplier
     memory_length: int = 5              # Knob: past iterations visible to Researcher
     feedback_metrics: List[str] = field(default_factory=lambda: [
         "sharpe_ratio", "max_drawdown", "turnover", "total_return"
@@ -28,11 +36,15 @@ class ExperimentConfig:
     patience: int = 3                   # Stop condition: patience rounds
     seed: int = 42                      # Reproducibility seed
     initial_capital: float = 100000.0   # Backtester capital
+    correlation_threshold: float = 0.95 # Gate threshold for C-corr framework
     data_split: DataSplitConfig = field(default_factory=DataSplitConfig)
 
     def __post_init__(self):
-        if self.framework_type not in ("A", "B", "C", "D"):
-            raise ValueError(f"Invalid framework_type: '{self.framework_type}'. Must be one of ['A', 'B', 'C', 'D'].")
+        if self.framework_type not in ALLOWED_FRAMEWORKS:
+            raise ValueError(
+                f"Invalid framework_type: '{self.framework_type}'. "
+                f"Must be one of {list(ALLOWED_FRAMEWORKS)}."
+            )
         self.data_split.validate()
         # Ensure selection_metric is always available in Researcher feedback / early-stop
         if self.selection_metric not in self.feedback_metrics:

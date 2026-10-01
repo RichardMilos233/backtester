@@ -24,3 +24,15 @@ def test_experiment_config_options():
     assert cfg.patience == 3
     assert "sharpe_ratio" in cfg.feedback_metrics
     assert cfg.selection_metric == "sharpe_ratio"
+
+def test_config_expanded_frameworks_and_budget():
+    for fw in ["A", "B", "C", "D", "C-sota", "C-corr", "C-reflect", "C-hier"]:
+        cfg = ExperimentConfig(framework_type=fw, model="deepseek-chat", max_backtests=8)
+        assert cfg.framework_type == fw
+        assert cfg.model == "deepseek-chat"
+        assert cfg.max_backtests == 8
+
+def test_config_invalid_framework_raises():
+    with pytest.raises(ValueError, match="Invalid framework_type"):
+        ExperimentConfig(framework_type="UNKNOWN_INFRA")
+

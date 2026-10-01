@@ -11,6 +11,7 @@ class StrategySpec:
     use_vol_scaling: bool = False
     vol_target: Optional[float] = None
     max_leverage: float = 1.0
+    is_fallback: bool = False
 
     def validate(self) -> Tuple[bool, str]:
         if self.signal_type == "momentum":
@@ -43,4 +44,5 @@ class StrategySpec:
             use_vol_scaling=data.get("use_vol_scaling", False),
             vol_target=data.get("vol_target"),
             max_leverage=float(data.get("max_leverage", 1.0)),
+            is_fallback=bool(data.get("is_fallback", False)),
         )
