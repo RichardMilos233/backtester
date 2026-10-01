@@ -8,10 +8,10 @@ COLUMNS = ['open', 'high', 'low', 'close', 'volume']
 
 
 def load_market_data(ticker: str = 'SPY') -> pd.DataFrame:
-    """读取已复权 OHLCV，并补上当期收益和下一期收益。"""
+    """Load adjusted OHLCV and add the current and next-period returns."""
     path = DATA_DIR / f'{ticker}.csv'
     if not path.exists():
-        raise FileNotFoundError(f'未找到行情数据: {path}')
+        raise FileNotFoundError(f'Market data file not found: {path}')
 
     df = pd.read_csv(path, index_col='date', parse_dates=True)
     df = df[COLUMNS].copy()

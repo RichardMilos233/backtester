@@ -31,7 +31,7 @@ def train_test_split_by_date(
     y: pd.Series,
     split_date: str = '2022-01-01',
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """严格按日期切分训练集与测试集。"""
+    """Split train and test by date, with no shuffle."""
     train_mask = X.index < split_date
     test_mask = X.index >= split_date
     return X[train_mask], X[test_mask], y[train_mask], y[test_mask]
@@ -43,7 +43,7 @@ def train_model_and_get_signals(
     y_train: pd.Series,
     X_test: pd.DataFrame,
 ) -> pd.Series:
-    """训练给定的 sklearn 模型，并在测试集上生成 0/1 目标持仓。"""
+    """Fit a sklearn model and return 0/1 target positions on the test set."""
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     return pd.Series((y_pred > 0).astype(float), index=X_test.index)

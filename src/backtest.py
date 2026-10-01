@@ -16,10 +16,10 @@ class Backtest:
 
     def run(self, data: pd.DataFrame, signals: pd.Series) -> pd.DataFrame:
         """
-        运行回测引擎。价格使用已复权 OHLC，收益里已经包含分红，不再单独记现金分红。
-        :param data: 行情 DataFrame，必须包含 'open' 和 'close'，索引为日期
-        :param signals: 目标仓位权重 Series (0.0~1.0，支持连续权重与离散 0/1)，索引为日期
-        :return: 包含账本、摩擦成本、市场状态与日收益率的明细 DataFrame
+        Run the backtest on adjusted OHLC. Dividends are already in the returns.
+        :param data: market DataFrame with 'open' and 'close', indexed by date
+        :param signals: target weight Series from 0.0 to 1.0, indexed by date
+        :return: ledger with positions, friction, regime, and daily returns
         """
         target_signals = signals.shift(1)
         current_cash = self.initial_capital
@@ -32,11 +32,11 @@ class Backtest:
             close_price = data['close'][date]
             signal = target_signals[date]
 
-            # 每股采购综合成本预算（含滑点与手续费，严防资金穿仓）
+            # All-in cost per share, including slippage and commission.
             cost_per_share = open_price * (1 + self.slippage_rate) * (1 + self.commission_rate)
             v_open = current_cash + current_position * open_price
 
-            # 目标权重：0 清仓，其余按开盘权益比例调仓
+            # Target weight: 0 liquidates; any other weight is a fraction of open equity.
             if pd.isna(signal):
                 trade_shares = 0
             elif signal == 0:
@@ -59,7 +59,7 @@ class Backtest:
                 else:
                     trade_shares = 0
 
-            # 实际执行价格计算（考虑买卖方向滑点）
+            # Execution price includes directional slippage.
             if trade_shares > 0:
                 execution_price = open_price * (1 + self.slippage_rate)
             elif trade_shares < 0:

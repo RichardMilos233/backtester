@@ -9,10 +9,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Configure Chinese font support for macOS
-plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'Heiti SC', 'sans-serif']
-plt.rcParams['axes.unicode_minus'] = False
-
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
 
@@ -37,40 +33,35 @@ def run_ml_evaluation(
     print("     SESSION 9: MACHINE LEARNING INCREMENTAL EVALUATION (OOS)    ")
     print("=================================================================")
 
-    # 1. 加载数据并生成状态特征
-    print("1. 加载数据并生成状态特征...")
+    print("1. Loading data and market regimes...")
     df = load_market_data(ticker)
     df_reg = classify_market_regimes(df)
 
-    # 2. 构建特征矩阵 X 与目标 y
-    print("2. 构建纯特征矩阵 X 与目标 y (预测明日收益率)...")
+    print("2. Building features and the next-day return target...")
     X, y = prepare_ml_features(df_reg)
 
-    # 3. 严格按时间切分：样本内训练集 (In-Sample) vs 样本外测试集 (Out-of-Sample)
     X_train, X_test, y_train, y_test = train_test_split_by_date(X, y, split_date=split_date)
-    print(f"   样本内训练期 (Train): {X_train.index[0].strftime('%Y-%m-%d')} ~ {X_train.index[-1].strftime('%Y-%m-%d')} ({len(X_train)} 天)")
-    print(f"   样本外测试期 (Test) : {X_test.index[0].strftime('%Y-%m-%d')} ~ {X_test.index[-1].strftime('%Y-%m-%d')} ({len(X_test)} 天)")
+    print(f"   Train: {X_train.index[0].strftime('%Y-%m-%d')} to {X_train.index[-1].strftime('%Y-%m-%d')} ({len(X_train)} days)")
+    print(f"   Test:  {X_test.index[0].strftime('%Y-%m-%d')} to {X_test.index[-1].strftime('%Y-%m-%d')} ({len(X_test)} days)")
 
-    # 4. 模型实例化
+    # Models
     models = {
         'Ridge': Ridge(alpha=10.0),
         'Lasso': Lasso(alpha=0.00005, random_state=42),
         'RandomForest': RandomForestRegressor(n_estimators=100, max_depth=3, random_state=42),
     }
 
-    # 5. 逐个训练模型并生成样本外测试集信号
-    print("\n3. 正在训练模型并生成样本外信号...")
+    print("\n3. Training models and building out-of-sample signals...")
     signals = {}
     for name, model in models.items():
         signals[name] = train_model_and_get_signals(model, X_train, y_train, X_test)
 
-    # 6. 对照基准信号
+    # Benchmarks
     signals['Buy & Hold'] = pd.Series(1.0, index=X_test.index)
     sma50_full = compute_moving_average_signal(df_reg, window=50)
     signals['Rule SMA50'] = sma50_full.loc[X_test.index]
 
-    # 7. 运行真实样本外摩擦回测
-    print("4. 运行样本外回测 (注入真实交易摩擦)...")
+    print("4. Running the out-of-sample backtest with trading costs...")
     df_test = df_reg.loc[X_test.index]
     bt = Backtest(initial_capital=100000.0)
 
@@ -81,10 +72,10 @@ def run_ml_evaluation(
         backtest_results[name] = res
         metrics_results[name] = compute_strategy_metrics(res)
 
-    # 8. 输出样本外全景对比报表
+    # Out-of-sample comparison
     summary = pd.DataFrame(metrics_results)[['Buy & Hold', 'Rule SMA50', 'Ridge', 'Lasso', 'RandomForest']]
     print("\n" + "=" * 85)
-    print("             样本外测试期 (2022-2026) 全策略横向大比拼")
+    print("             OUT-OF-SAMPLE COMPARISON (2022-2026)")
     print("=" * 85)
     
     display_df = summary.astype(object).copy()
@@ -101,18 +92,17 @@ def run_ml_evaluation(
     print(display_df.to_string())
     print("=" * 85)
 
-    # 9. 模型可解释性诊断
+    # Coefficients and feature importance
     coef_df = pd.DataFrame({
         'Ridge_coef': models['Ridge'].coef_,
         'Lasso_coef': models['Lasso'].coef_,
         'RF_importance': models['RandomForest'].feature_importances_
     }, index=X.columns)
 
-    # 10. 绘图：样本外净值走势与特征重要性
-    print(f"\n5. 正在生成样本外策略对比图 -> {output_img}...")
+    print(f"\n5. Saving the comparison plot -> {output_img}...")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-    # 子图 1: 样本外净值走势对比
+    # Equity curves
     init_cap = 100000.0
     for name, color, ls, lw in [
         ('Buy & Hold', '#2b5c8f', '-', 1.8),
@@ -122,24 +112,24 @@ def run_ml_evaluation(
     ]:
         res = backtest_results[name]
         ax1.plot(res.index, res['total_value'] / init_cap, label=name, color=color, linestyle=ls, lw=lw)
-    ax1.set_title('样本外测试集 (2022-2026) 策略净值走势对比', fontsize=12, fontweight='bold')
-    ax1.set_ylabel('账户净值倍数 (Multiple)', fontsize=11)
-    ax1.set_xlabel('日期', fontsize=11)
+    ax1.set_title('Out-of-sample equity curves (2022-2026)', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Portfolio value (multiple of initial)', fontsize=11)
+    ax1.set_xlabel('Date', fontsize=11)
     ax1.grid(True, linestyle='--', alpha=0.5)
     ax1.legend(loc='upper left', frameon=True)
 
-    # 子图 2: 随机森林特征重要性排行
+    # Random forest feature importance
     rf_imp = coef_df['RF_importance'].sort_values(ascending=True)
     ax2.barh(rf_imp.index, rf_imp.values, color='#31a354', alpha=0.85)
-    ax2.set_title('Random Forest 特征重要性排序 (Feature Importance)', fontsize=12, fontweight='bold')
-    ax2.set_xlabel('相对重要性权重 (Importance)', fontsize=11)
+    ax2.set_title('Random forest feature importance', fontsize=12, fontweight='bold')
+    ax2.set_xlabel('Importance', fontsize=11)
     ax2.grid(True, linestyle='--', alpha=0.5)
 
     plt.tight_layout()
     os.makedirs(os.path.dirname(output_img), exist_ok=True)
     plt.savefig(output_img, dpi=300, bbox_inches='tight')
     plt.close()
-    print("图表已成功保存！\n")
+    print("Plot saved.\n")
 
     return summary, coef_df
 
