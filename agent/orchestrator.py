@@ -286,19 +286,23 @@ class StrategyOrchestrator:
 
         rejection_reason = None
         vol_targets = [0.10, 0.12, 0.15, 0.18]
+        vol_attempts = 0  # advances on every vol-overlay proposal so a rejection never re-proposes the same overlay
 
         while len(self.evaluated_specs) < self.budget and self.total_proposals < self.max_proposals:
             self.total_proposals += 1
             step = len(self.evaluated_specs)
 
-            # Odd step: optimize volatility scaling on current best candidate if one exists
-            if step > 0 and step % 2 == 1:
-                # Find current best spec on search set
+            # Odd step: optimize volatility scaling on current best *core* candidate.
+            # Fall back to a core proposal once every vol target for that base has been tried.
+            core_specs = [(i, s) for i, s in enumerate(self.evaluated_specs) if not s.use_vol_scaling]
+            do_vol = step > 0 and step % 2 == 1 and core_specs and vol_attempts < len(vol_targets)
+            if do_vol:
                 metric = self.config.selection_metric
-                best_idx = max(range(len(self.search_results)), key=lambda i: self.search_results[i].get(metric, -999.0))
+                best_idx = max(core_specs, key=lambda t: self.search_results[t[0]].get(metric, -999.0))[0]
                 base_spec = self.evaluated_specs[best_idx]
 
-                vol_target = vol_targets[(step // 2) % len(vol_targets)]
+                vol_target = vol_targets[vol_attempts % len(vol_targets)]
+                vol_attempts += 1
                 spec = StrategySpec(
                     spec_id=f"{base_spec.spec_id}_vol_{int(vol_target*100)}",
                     hypothesis=f"Hierarchical vol-scaling on {base_spec.spec_id} with target {vol_target}",

@@ -74,3 +74,16 @@ def test_reviewer_correlation_gate():
     assert res.passed is False
     assert "High signal correlation" in res.reason
 
+
+
+def test_reviewer_distinguishes_vol_scaled_overlay_from_core_spec():
+    from agent.reviewer import Reviewer
+    from agent.spec import StrategySpec
+    core = StrategySpec("core", "hypothesis text", "momentum", {"window": 120})
+    overlay = StrategySpec("ovl", "hypothesis text", "momentum", {"window": 120},
+                           use_vol_scaling=True, vol_target=0.12, max_leverage=1.5)
+    same_overlay = StrategySpec("ovl2", "hypothesis text", "momentum", {"window": 120},
+                                use_vol_scaling=True, vol_target=0.12, max_leverage=1.5)
+    r = Reviewer(allow_duplicates=False)
+    assert r.review(overlay, [core]).passed
+    assert not r.review(same_overlay, [core, overlay]).passed

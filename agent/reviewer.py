@@ -10,6 +10,17 @@ class ReviewResult:
     reason: str = ""
 
 
+def _same_strategy(a: StrategySpec, b: StrategySpec) -> bool:
+    """Two specs are duplicates only if signal, params AND the vol-scaling overlay all match."""
+    if a.signal_type != b.signal_type or a.params != b.params:
+        return False
+    if bool(a.use_vol_scaling) != bool(b.use_vol_scaling):
+        return False
+    if not a.use_vol_scaling:
+        return True
+    return (a.vol_target or 0.15) == (b.vol_target or 0.15) and a.max_leverage == b.max_leverage
+
+
 class Reviewer:
     """
     Centralized verification agent that screens strategy specs prior to backtesting.
@@ -37,10 +48,7 @@ class Reviewer:
         # Gate 2: Duplicate detection
         if not self.allow_duplicates:
             for past_spec in history:
-                if (
-                    past_spec.signal_type == spec.signal_type and
-                    past_spec.params == spec.params
-                ):
+                if _same_strategy(past_spec, spec):
                     return ReviewResult(
                         passed=False,
                         reason=f"Duplicate strategy parameters already evaluated: {spec.signal_type} {spec.params}"

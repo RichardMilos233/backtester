@@ -84,3 +84,14 @@ def test_orchestrator_disallows_fallback_selection(synthetic_data):
     assert res["best_spec"]["spec_id"] == "valid_1"
 
 
+
+
+def test_c_hier_uses_full_budget_and_vol_overlay_is_not_flagged_duplicate(synthetic_data):
+    """Regression: vol-scaled overlay of the best core spec used to be rejected as a duplicate
+    (reviewer compared only signal_type/params), so C-hier burned every proposal and ran 1 backtest."""
+    cfg = ExperimentConfig(framework_type="C-hier", max_backtests=4, memory_length=2, seed=42)
+    orchestrator = StrategyOrchestrator(cfg, StrategyEvaluator(synthetic_data))
+    result = orchestrator.run()
+    assert result["actual_backtests"] == 4
+    assert result["reviewer_rejections"] == 0
+    assert any(s.use_vol_scaling for s in orchestrator.evaluated_specs)
