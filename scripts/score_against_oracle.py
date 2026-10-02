@@ -93,7 +93,7 @@ def leaderboard(scored: pd.DataFrame, group: str) -> pd.DataFrame:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("exp_dirs", nargs="+")
-    ap.add_argument("--oracle", default=str(REPO_ROOT / "docs/experiments/oracle/SPY_default.csv"))
+    ap.add_argument("--oracle", default=str(REPO_ROOT / "docs/experiments/oracle/SPY_full.csv.gz"))
     ap.add_argument("--group", default="framework_type", choices=["model", "framework_type"])
     ap.add_argument("--ticker", default="SPY", help="Used only to evaluate off-lattice picks")
     ap.add_argument("--out", default=None, help="Write scored rows to this CSV")

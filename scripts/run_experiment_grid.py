@@ -151,7 +151,7 @@ def main():
 
     for t in sorted({c.task_id for c in configs}):
         get_task(t)  # fail fast on unknown ids
-        if not (ORACLE_DIR / f"{t}.csv").exists():
+        if not (ORACLE_DIR / f"{t}.csv.gz").exists():
             print(f"WARNING: no oracle for task {t}; run scripts/build_oracle.py --task {t} for normalised scores")
 
     print(f"Total configurations: {len(configs)}  ->  {out_dir}")

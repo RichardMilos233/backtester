@@ -40,7 +40,7 @@ class Task:
 
     def oracle_path(self, root) -> "Path":
         from pathlib import Path
-        return Path(root) / "docs/experiments/oracle" / f"{self.task_id}.csv"
+        return Path(root) / "docs/experiments/oracle" / f"{self.task_id}.csv.gz"
 
 
 # Legacy: identical to the task every Phase 1 / Phase 2 run used.

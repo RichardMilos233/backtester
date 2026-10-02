@@ -38,3 +38,4 @@ data/ohlcv/
 ohlcv_daily/
 ohlcv/
 
+docs/experiments/oracle/*.csv

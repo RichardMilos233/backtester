@@ -66,7 +66,7 @@ def test_grid_runner_scores_against_oracle_and_records_usage(tmp_path, synthetic
         [10, 20, 30, 50], [8], [20], [9], [None]
     try:
         oracle_dir = tmp_path / "oracle"
-        save_oracle(build_oracle_table(ev), oracle_dir / "SPY_full.csv")
+        save_oracle(build_oracle_table(ev), oracle_dir / "SPY_full.csv.gz")
         runner = ExperimentGridRunner(tmp_path / "out", evaluator=ev, oracle_dir=oracle_dir)
         rows = runner.run_grid([
             ExperimentConfig(task_id="SPY_full", model="mock", framework_type="C", seed=42, max_backtests=2),

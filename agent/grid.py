@@ -53,7 +53,7 @@ class ExperimentGridRunner:
         if self.oracle_dir is None:
             return None
         if task_id not in self._scorers:
-            path = self.oracle_dir / f"{task_id}.csv"
+            path = self.oracle_dir / f"{task_id}.csv.gz"
             self._scorers[task_id] = OracleScorer(load_oracle(path)) if path.exists() else None
         return self._scorers[task_id]
 
