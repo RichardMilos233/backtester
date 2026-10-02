@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """
-CLI entry point for running orthogonal Agent strategy search experiments.
+CLI entry point for the agent-infrastructure benchmark.
+
+One run = (task_id, model, framework_type, seed) at a fixed backtest budget.
+Each run appends a row to <output-dir>/summary.csv and a trace to runs.jsonl.
+When docs/experiments/oracle/<task_id>.csv exists, the row also carries
+regime-free scores (percentile_val, regret_test, ...). Build oracles first with
+scripts/build_oracle.py.
 
 Modes:
-  --mode smoke   : Quick verification with Mock LLM (1 run).
-  --mode phase1  : Foundation model bake-off on fixed Framework C across seeds.
-  --mode phase2  : Agent architecture ablation on fixed model across seeds.
-  --mode custom  : Custom matrix specified via --models, --infras, --seeds.
+  --mode smoke      : Mock LLM, 1 run on SPY_full.
+  --mode phase1     : Foundation model bake-off, framework C, task SPY_full.
+  --mode phase2     : Architecture ablation on a fixed model, task SPY_full.
+  --mode baselines  : Non-LLM baselines (R-random, R-grid), model="none".
+  --mode benchmark  : models x infras x seeds over a task suite (--suite core|full|smoke or --tasks ...).
+  --mode custom     : models x infras x seeds on --tasks (default SPY_full).
 """
 
 import argparse
@@ -19,166 +27,136 @@ if str(REPO_ROOT) not in sys.path:
 
 import pandas as pd
 
-from src.data import load_market_data
 from agent.config import ExperimentConfig
-from agent.evaluator import StrategyEvaluator
 from agent.grid import ExperimentGridRunner
+from agent.tasks import SUITE_CORE, SUITE_FULL, SUITE_SMOKE, get_task
 
+ORACLE_DIR = REPO_ROOT / "docs/experiments/oracle"
 
 DEFAULT_PHASE1_MODELS = [
-    # Top Tier Frontier Models available & active on Gateway
-    "gpt-5.6-sol",        # OpenAI Flagship Sol variant
-    "claude-opus-4-8",    # Anthropic Flagship Opus
-    "claude-sonnet-5",    # Anthropic Sonnet 5
-    "glm-5.3",            # Zhipu GLM Latest
-    "gemini-3-flash",     # Google Gemini 3 series
-    "deepseek-chat",      # High-speed baseline
+    "gpt-5.6-sol",
+    "claude-opus-4-8",
+    "claude-sonnet-5",
+    "glm-5.3",
+    "gemini-3-flash",
+    "deepseek-chat",
 ]
 
-DEFAULT_PHASE2_INFRAS = [
-    "C",
-    "C-sota",
-    "C-corr",
-    "C-reflect",
-    "C-hier",
-]
+DEFAULT_PHASE2_INFRAS = ["C", "C-sota", "C-corr", "C-reflect", "C-hier"]
+BASELINE_INFRAS = ["R-random", "R-grid"]
+SUITES = {"smoke": SUITE_SMOKE, "core": SUITE_CORE, "full": SUITE_FULL}
 
 
 def print_summary_table(df: pd.DataFrame, group_col: str):
     if df.empty or "status" not in df.columns:
         print("No results to display.")
         return
-
-    success_df = df[df["status"] == "success"].copy()
-    if success_df.empty:
+    ok = df[df["status"] == "success"].copy()
+    failed = df[df["status"] != "success"]
+    if ok.empty:
         print("All runs failed or no successful runs recorded.")
         return
 
-    # Ensure numeric columns
-    numeric_cols = [
-        "test_sharpe", "val_sharpe", "overfitting_gap",
-        "test_total_return", "test_max_drawdown", "test_turnover",
-        "parse_failures", "reviewer_rejections", "elapsed_seconds"
-    ]
-    for c in numeric_cols:
-        if c in success_df.columns:
-            success_df[c] = pd.to_numeric(success_df[c], errors="coerce")
-
+    # Oracle-normalised columns first (regime-free), raw Test Sharpe second.
     agg_rules = {
+        "percentile_val": ["mean"],
+        "regret_test": ["mean"],
+        "regret_vs_val_oracle": ["mean"],
         "test_sharpe": ["mean", "std"],
         "val_sharpe": ["mean"],
         "overfitting_gap": ["mean"],
-        "test_total_return": ["mean"],
-        "test_max_drawdown": ["mean"],
-        "test_turnover": ["mean"],
+        "budget_utilization": ["mean"],
         "parse_failures": ["sum"],
         "reviewer_rejections": ["sum"],
+        "llm_calls": ["sum"],
+        "llm_total_tokens": ["sum"],
         "elapsed_seconds": ["mean"],
     }
-    # Keep only rules where column exists
-    agg_rules = {k: v for k, v in agg_rules.items() if k in success_df.columns}
+    for c in agg_rules:
+        if c in ok.columns:
+            ok[c] = pd.to_numeric(ok[c], errors="coerce")
+    agg_rules = {k: v for k, v in agg_rules.items() if k in ok.columns and ok[k].notna().any()}
 
-    grouped = success_df.groupby(group_col).agg(agg_rules)
-    print("\n" + "=" * 100)
-    print(f"BENCHMARK SUMMARY BY {group_col.upper()}")
-    print("=" * 100)
+    pd.set_option("display.width", 220)
+    pd.set_option("display.float_format", lambda x: f"{x:.3f}")
+    grouped = ok.groupby(group_col).agg(agg_rules)
+    grouped.insert(0, ("n", "runs"), ok.groupby(group_col).size())
+    if "percentile_val" in ok.columns and ok["percentile_val"].notna().any():
+        grouped = grouped.sort_values(("percentile_val", "mean"), ascending=False)
+    print("\n" + "=" * 110)
+    print(f"BENCHMARK SUMMARY BY {group_col.upper()}  ({len(ok)} ok, {len(failed)} failed)")
+    print("=" * 110)
     print(grouped.to_string())
-    print("=" * 100 + "\n")
+    if "task_id" in ok.columns and ok["task_id"].nunique() > 1 and "percentile_val" in ok.columns:
+        print("\nper-task percentile_val:")
+        print(ok.pivot_table(index=group_col, columns="task_id", values="percentile_val", aggfunc="mean").to_string())
+    print("=" * 110 + "\n")
+
+
+def build_configs(tasks, models, infras, seeds, budget):
+    return [
+        ExperimentConfig(task_id=t, model=m, framework_type=f, seed=s, max_backtests=budget)
+        for t in tasks for m in models for f in infras for s in seeds
+    ]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Agent Strategy Search Grid Runner")
-    parser.add_argument("--mode", choices=["smoke", "phase1", "phase2", "custom"], default="smoke",
-                        help="Experiment mode")
-    parser.add_argument("--models", nargs="+", default=None,
-                        help="List of model IDs to test")
+    parser = argparse.ArgumentParser(description="Agent Strategy Search Benchmark Runner")
+    parser.add_argument("--mode", choices=["smoke", "phase1", "phase2", "baselines", "benchmark", "custom"], default="smoke")
+    parser.add_argument("--models", nargs="+", default=None, help="Model IDs (or 'mock', 'none')")
     parser.add_argument("--infras", nargs="+", default=None,
-                        help="List of framework types (e.g. C C-sota C-corr C-reflect C-hier)")
-    parser.add_argument("--base-model", default="deepseek-chat",
-                        help="Fixed model to use during phase2 infra comparisons")
-    parser.add_argument("--seeds", nargs="+", type=int, default=None,
-                        help="List of random seeds (default: 42 43 44 45 46)")
-    parser.add_argument("--budget", type=int, default=4,
-                        help="Max backtests allowed on search set per seed (default: 4)")
-    parser.add_argument("--output-dir", default=None,
-                        help="Output directory for runs.jsonl and summary.csv")
-    parser.add_argument("--no-resume", action="store_true",
-                        help="Do not resume; re-run all configurations")
-
+                        help="Framework types: A B C D C-sota C-corr C-reflect C-hier R-random R-grid")
+    parser.add_argument("--base-model", default="deepseek-chat", help="Fixed model for phase2")
+    parser.add_argument("--seeds", nargs="+", type=int, default=None, help="Default: 42 43 44 45 46")
+    parser.add_argument("--budget", type=int, default=4, help="Max backtests on the search split per run")
+    parser.add_argument("--tasks", nargs="+", default=None, help="Task ids (see agent/tasks.py)")
+    parser.add_argument("--suite", choices=sorted(SUITES), default=None, help="Named task suite for --mode benchmark")
+    parser.add_argument("--with-baselines", action="store_true", help="Also run R-random/R-grid (model=none) on every task")
+    parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--no-resume", action="store_true")
     args = parser.parse_args()
 
-    # Load market data
-    print("Loading market data (SPY)...")
-    market_df = load_market_data("SPY")
-    evaluator = StrategyEvaluator(market_df)
-
-    # Determine default paths & configurations
-    if args.output_dir:
-        out_dir = Path(args.output_dir)
-    else:
-        out_dir = Path("docs/experiments") / args.mode
-
     seeds = args.seeds or [42, 43, 44, 45, 46]
-    configs = []
+    out_dir = Path(args.output_dir) if args.output_dir else Path("docs/experiments") / args.mode
     group_col = "model"
+    configs = []
 
     if args.mode == "smoke":
-        out_dir = Path("docs/experiments/grid_smoke")
-        configs = [
-            ExperimentConfig(model="mock", framework_type="C", seed=42, max_backtests=2)
-        ]
-        group_col = "model"
+        out_dir = Path(args.output_dir or "docs/experiments/grid_smoke")
+        configs = build_configs(["SPY_full"], ["mock"], ["C"], [42], 2)
 
     elif args.mode == "phase1":
-        models = args.models or DEFAULT_PHASE1_MODELS
-        group_col = "model"
-        for m in models:
-            for s in seeds:
-                configs.append(
-                    ExperimentConfig(
-                        model=m,
-                        framework_type="C",
-                        seed=s,
-                        max_backtests=args.budget
-                    )
-                )
+        configs = build_configs(["SPY_full"], args.models or DEFAULT_PHASE1_MODELS, ["C"], seeds, args.budget)
 
     elif args.mode == "phase2":
-        infras = args.infras or DEFAULT_PHASE2_INFRAS
         group_col = "framework_type"
-        for inf in infras:
-            for s in seeds:
-                configs.append(
-                    ExperimentConfig(
-                        model=args.base_model,
-                        framework_type=inf,
-                        seed=s,
-                        max_backtests=args.budget
-                    )
-                )
+        configs = build_configs(["SPY_full"], [args.base_model], args.infras or DEFAULT_PHASE2_INFRAS, seeds, args.budget)
 
-    elif args.mode == "custom":
+    elif args.mode == "baselines":
+        group_col = "framework_type"
+        tasks = args.tasks or SUITES.get(args.suite or "smoke")
+        configs = build_configs(tasks, ["none"], BASELINE_INFRAS, seeds, args.budget)
+
+    elif args.mode in ("benchmark", "custom"):
+        if args.mode == "benchmark":
+            tasks = args.tasks or SUITES[args.suite or "core"]
+        else:
+            tasks = args.tasks or ["SPY_full"]
         models = args.models or [args.base_model]
         infras = args.infras or ["C"]
         group_col = "model" if len(models) > len(infras) else "framework_type"
-        for m in models:
-            for inf in infras:
-                for s in seeds:
-                    configs.append(
-                        ExperimentConfig(
-                            model=m,
-                            framework_type=inf,
-                            seed=s,
-                            max_backtests=args.budget
-                        )
-                    )
+        configs = build_configs(tasks, models, infras, seeds, args.budget)
+        if args.with_baselines:
+            configs += build_configs(tasks, ["none"], BASELINE_INFRAS, seeds, args.budget)
 
-    print(f"Total configurations to evaluate: {len(configs)}")
-    print(f"Output directory: {out_dir}")
+    for t in sorted({c.task_id for c in configs}):
+        get_task(t)  # fail fast on unknown ids
+        if not (ORACLE_DIR / f"{t}.csv").exists():
+            print(f"WARNING: no oracle for task {t}; run scripts/build_oracle.py --task {t} for normalised scores")
 
-    runner = ExperimentGridRunner(output_dir=out_dir, evaluator=evaluator)
+    print(f"Total configurations: {len(configs)}  ->  {out_dir}")
+    runner = ExperimentGridRunner(output_dir=out_dir, oracle_dir=ORACLE_DIR)
     summary_df = runner.run_grid(configs, resume=not args.no_resume)
-
     print_summary_table(summary_df, group_col=group_col)
 
 

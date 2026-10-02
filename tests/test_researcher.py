@@ -51,3 +51,12 @@ def test_researcher_fallback_flag_on_invalid_json():
     assert researcher.last_parse_failed is True
     assert "Fallback baseline due to parsing exception" in spec.hypothesis
 
+
+
+def test_researcher_usage_property_exposes_client_usage():
+    client = MockLLMClient(seed=3)
+    researcher = Researcher(llm_client=client)
+    assert researcher.usage is client.usage
+    researcher.propose()
+    assert researcher.usage.calls == 1
+    assert researcher.usage.total_tokens > 0

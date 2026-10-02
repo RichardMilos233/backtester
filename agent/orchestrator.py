@@ -1,12 +1,15 @@
 import json
+import math
+import random
 from typing import Callable, Dict, Any, List, Optional
 
 from agent.config import ExperimentConfig
 from agent.evaluator import StrategyEvaluator
 from agent.spec import StrategySpec
-from agent.llm import BaseLLMClient, MockLLMClient
+from agent.llm import BaseLLMClient, MockLLMClient, LLMUsage
 from agent.researcher import Researcher
 from agent.reviewer import Reviewer
+from agent.space import enumerate_space, spec_key
 
 
 class StrategyOrchestrator:
@@ -18,7 +21,8 @@ class StrategyOrchestrator:
     ):
         self.config = config
         self.evaluator = evaluator
-        self.llm_client_factory = llm_client_factory or MockLLMClient
+        self._raw_llm_factory = llm_client_factory or MockLLMClient
+        self.llm_clients: List[BaseLLMClient] = []
         self.evaluated_specs: List[StrategySpec] = []
         self.search_results: List[Dict[str, Any]] = []
 
@@ -26,6 +30,39 @@ class StrategyOrchestrator:
         self.total_proposals: int = 0
         self.parse_failures: int = 0
         self.reviewer_rejections: int = 0
+
+    def llm_client_factory(self, seed: int) -> BaseLLMClient:
+        """Creates a client and keeps a handle so token usage can be summed at the end."""
+        client = self._raw_llm_factory(seed)
+        self.llm_clients.append(client)
+        return client
+
+    def llm_usage(self) -> Dict[str, Any]:
+        total = LLMUsage()
+        for c in self.llm_clients:
+            u = getattr(c, "usage", None)
+            if isinstance(u, LLMUsage):
+                total.add(u)
+        return total.as_dict()
+
+    def search_trajectory(self) -> List[Dict[str, Any]]:
+        """Ordered record of every backtested spec with its search-split metrics.
+        Needed for best-so-far / sample-efficiency curves."""
+        metric = self.config.selection_metric
+        out, best = [], -float("inf")
+        for i, (spec, m) in enumerate(zip(self.evaluated_specs, self.search_results)):
+            score = m.get(metric)
+            if score is not None and not (isinstance(score, float) and math.isnan(score)):
+                best = max(best, score)
+            out.append({
+                "step": i + 1,
+                "spec_id": spec.spec_id,
+                "spec_key": spec_key(spec),
+                "spec": spec.to_dict(),
+                "search_metrics": m,
+                "best_so_far": best if best != -float("inf") else None,
+            })
+        return out
 
     @property
     def budget(self) -> int:
@@ -54,6 +91,10 @@ class StrategyOrchestrator:
             return self._run_framework_c_reflect()
         elif fw == "C-hier":
             return self._run_framework_c_hier()
+        elif fw == "R-random":
+            return self._run_random_search()
+        elif fw == "R-grid":
+            return self._run_grid_search()
         else:
             raise ValueError(f"Unknown framework_type {fw}")
 
@@ -335,6 +376,58 @@ class StrategyOrchestrator:
 
         return self._finalize_selection_and_test()
 
+    # ------------------------------------------------------------------
+    # Non-LLM baselines: same search budget, same Val selection + single Test.
+    # ------------------------------------------------------------------
+    def _evaluate_baseline_specs(self, specs: List[StrategySpec]) -> Dict[str, Any]:
+        for spec in specs:
+            self.total_proposals += 1
+            metrics = self.evaluator.evaluate_search(spec, self.config.feedback_metrics)
+            self.evaluated_specs.append(spec)
+            self.search_results.append(metrics)
+        return self._finalize_selection_and_test()
+
+    @staticmethod
+    def _relabel(spec: StrategySpec, spec_id: str, hypothesis: str) -> StrategySpec:
+        return StrategySpec(
+            spec_id=spec_id,
+            hypothesis=hypothesis,
+            signal_type=spec.signal_type,
+            params=dict(spec.params),
+            use_vol_scaling=spec.use_vol_scaling,
+            vol_target=spec.vol_target,
+            max_leverage=spec.max_leverage,
+        )
+
+    def _run_random_search(self) -> Dict[str, Any]:
+        """R-random: uniform sample (without replacement) of `budget` specs from the full lattice
+        (incl. vol-scaling overlays). No LLM, no early stop."""
+        space = enumerate_space(include_vol=True)
+        rng = random.Random(self.config.seed)
+        picks = rng.sample(space, min(self.budget, len(space)))
+        specs = [
+            self._relabel(s, f"rand_{i}", f"Random search sample {i}: {spec_key(s)}")
+            for i, s in enumerate(picks)
+        ]
+        return self._evaluate_baseline_specs(specs)
+
+    def _run_grid_search(self) -> Dict[str, Any]:
+        """R-grid: deterministic, seed-independent, evenly spaced subset of the no-vol lattice
+        (sorted by spec_key) with exactly `budget` entries. No LLM, no early stop."""
+        space = sorted(enumerate_space(include_vol=False), key=spec_key)
+        n, k = len(space), min(self.budget, len(space))
+        if k <= 0:
+            indices: List[int] = []
+        elif k == 1:
+            indices = [(n - 1) // 2]
+        else:
+            indices = [round(i * (n - 1) / (k - 1)) for i in range(k)]
+        specs = [
+            self._relabel(space[j], f"grid_{i}", f"Coarse grid point {i}: {spec_key(space[j])}")
+            for i, j in enumerate(indices)
+        ]
+        return self._evaluate_baseline_specs(specs)
+
     def _check_early_stop(self) -> bool:
         if len(self.search_results) < self.config.patience + 1:
             return False
@@ -372,7 +465,12 @@ class StrategyOrchestrator:
         selection_scores = []
         for spec in candidates_to_score:
             sel_metrics = self.evaluator.evaluate_selection(spec)
-            selection_scores.append((sel_metrics.get(self.config.selection_metric, -999.0), spec, sel_metrics))
+            score = sel_metrics.get(self.config.selection_metric, -999.0)
+            # Degenerate specs (e.g. all-flat signal -> zero vol) yield NaN Sharpe; NaN breaks sort
+            # ordering and could be picked as winner, so rank it last.
+            if score is None or (isinstance(score, float) and math.isnan(score)):
+                score = -float("inf")
+            selection_scores.append((score, spec, sel_metrics))
 
         selection_scores.sort(key=lambda x: x[0], reverse=True)
         best_score, best_spec, best_sel_metrics = selection_scores[0]
@@ -399,4 +497,6 @@ class StrategyOrchestrator:
             "test_metrics": test_metrics,
             "overfitting_gap": overfitting_gap,
             "search_candidates_count": len(self.evaluated_specs),
+            "llm_usage": self.llm_usage(),
+            "trajectory": self.search_trajectory(),
         }

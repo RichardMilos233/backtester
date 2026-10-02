@@ -2,6 +2,34 @@ import abc
 import json
 import random
 import time
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, Optional
+
+
+@dataclass
+class LLMUsage:
+    """Cumulative process metrics for an LLM client (token usage, call counts)."""
+    calls: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    retries: int = 0
+    failures: int = 0
+    latency_seconds: float = 0.0
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    def add(self, other: "LLMUsage") -> "LLMUsage":
+        """Accumulates `other` into self in place and returns self."""
+        self.calls += other.calls
+        self.prompt_tokens += other.prompt_tokens
+        self.completion_tokens += other.completion_tokens
+        self.total_tokens += other.total_tokens
+        self.retries += other.retries
+        self.failures += other.failures
+        self.latency_seconds += other.latency_seconds
+        return self
 
 
 class BaseLLMClient(abc.ABC):
@@ -9,6 +37,40 @@ class BaseLLMClient(abc.ABC):
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         """Generates response text from the LLM given prompt."""
         pass
+
+    @property
+    def usage(self) -> LLMUsage:
+        # Lazily created so subclasses need not call super().__init__().
+        u = self.__dict__.get("_usage")
+        if u is None:
+            u = LLMUsage()
+            self.__dict__["_usage"] = u
+        return u
+
+    @usage.setter
+    def usage(self, value: LLMUsage) -> None:
+        self.__dict__["_usage"] = value
+
+    def record(
+        self,
+        prompt_tokens: int,
+        completion_tokens: int,
+        latency: float,
+        retries: int = 0,
+        total_tokens: Optional[int] = None,
+    ) -> None:
+        """Records one successful generate() call into self.usage."""
+        u = self.usage
+        prompt_tokens = int(prompt_tokens or 0)
+        completion_tokens = int(completion_tokens or 0)
+        if total_tokens is None:
+            total_tokens = prompt_tokens + completion_tokens
+        u.calls += 1
+        u.prompt_tokens += prompt_tokens
+        u.completion_tokens += completion_tokens
+        u.total_tokens += int(total_tokens or 0)
+        u.retries += int(retries)
+        u.latency_seconds += float(latency)
 
 
 REJECTION_ALERT = "[ALERT - PRIOR PROPOSAL REJECTED BY REVIEWER]"
@@ -72,7 +134,14 @@ class MockLLMClient(BaseLLMClient):
                 "signal_type": "macd",
                 "params": {"fast": fast, "slow": slow, "signal_span": span}
             }
-        return json.dumps(spec_dict)
+        response = json.dumps(spec_dict)
+        # Deterministic token estimate (~4 chars/token); latency fixed at 0 for reproducibility.
+        self.record(
+            prompt_tokens=len(prompt) // 4,
+            completion_tokens=len(response) // 4,
+            latency=0.0,
+        )
+        return response
 
 
 class OpenAICompatibleClient(BaseLLMClient):
@@ -121,6 +190,7 @@ class OpenAICompatibleClient(BaseLLMClient):
 
         max_retries = 3
         last_error = None
+        start = time.perf_counter()
 
         for attempt in range(max_retries):
             try:
@@ -135,6 +205,17 @@ class OpenAICompatibleClient(BaseLLMClient):
                     content = result["choices"][0]["message"]["content"]
                     # Clean up reasoning <think>...</think> tags if model is reasoning-based
                     cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                    usage = result.get("usage") or {}
+                    prompt_tokens = int(usage.get("prompt_tokens") or 0)
+                    completion_tokens = int(usage.get("completion_tokens") or 0)
+                    total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
+                    self.record(
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        latency=time.perf_counter() - start,
+                        retries=attempt,
+                        total_tokens=total_tokens,
+                    )
                     return cleaned_content
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode("utf-8", errors="replace")
@@ -142,6 +223,7 @@ class OpenAICompatibleClient(BaseLLMClient):
                 if e.code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
                     time.sleep(2 * (attempt + 1))
                     continue
+                self._record_failure(attempt, start)
                 raise last_error from e
             except Exception as e:
                 last_error = RuntimeError(f"Failed to call LLM API: {str(e)}")
@@ -149,9 +231,19 @@ class OpenAICompatibleClient(BaseLLMClient):
                 if attempt < max_retries - 1:
                     time.sleep(2 * (attempt + 1))
                     continue
+                self._record_failure(attempt, start)
                 raise last_error from e
 
+        self._record_failure(max_retries - 1, start)
         raise last_error or RuntimeError("Max retries exceeded")
+
+    def _record_failure(self, attempt: int, start: float) -> None:
+        """Records a generate() call that ultimately raised (counts as a call)."""
+        u = self.usage
+        u.calls += 1
+        u.failures += 1
+        u.retries += attempt
+        u.latency_seconds += time.perf_counter() - start
 
 
 def get_llm_client(

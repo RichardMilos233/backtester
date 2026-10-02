@@ -50,3 +50,40 @@ def test_grid_runner_resumption_and_logging(tmp_path, synthetic_data):
     with open(tmp_path / "runs.jsonl") as f:
         lines_after = len(f.readlines())
     assert lines_after == 2  # No new lines written because of resumption
+
+
+def test_grid_runner_scores_against_oracle_and_records_usage(tmp_path, synthetic_data):
+    """Rows carry task_id, llm usage and oracle-normalised scores when an oracle table exists."""
+    import agent.space as space
+    from agent.oracle import build_oracle_table, save_oracle
+    from agent.config import ExperimentConfig
+    from agent.evaluator import StrategyEvaluator
+    from agent.grid import ExperimentGridRunner
+
+    ev = StrategyEvaluator(synthetic_data)
+    orig = (space.MOMENTUM_WINDOWS, space.MACD_FAST, space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS)
+    space.MOMENTUM_WINDOWS, space.MACD_FAST, space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS = \
+        [10, 20, 30, 50], [8], [20], [9], [None]
+    try:
+        oracle_dir = tmp_path / "oracle"
+        save_oracle(build_oracle_table(ev), oracle_dir / "SPY_full.csv")
+        runner = ExperimentGridRunner(tmp_path / "out", evaluator=ev, oracle_dir=oracle_dir)
+        rows = runner.run_grid([
+            ExperimentConfig(task_id="SPY_full", model="mock", framework_type="C", seed=42, max_backtests=2),
+            ExperimentConfig(task_id="SPY_full", model="none", framework_type="R-grid", seed=42, max_backtests=2),
+        ])
+    finally:
+        space.MOMENTUM_WINDOWS, space.MACD_FAST, space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS = orig
+
+    assert list(rows["status"]) == ["success", "success"]
+    assert set(rows["task_id"]) == {"SPY_full"}
+    c_row = rows[rows.framework_type == "C"].iloc[0]
+    assert c_row["llm_calls"] >= 2 and c_row["llm_total_tokens"] > 0
+    assert 0 <= c_row["percentile_val"] <= 1
+    assert c_row["budget_utilization"] == 1.0
+    g_row = rows[rows.framework_type == "R-grid"].iloc[0]
+    assert g_row["llm_calls"] == 0
+    assert g_row["on_lattice"] in (True, "True")
+    # resume key includes task_id: nothing re-runs
+    again = runner.run_grid([ExperimentConfig(task_id="SPY_full", model="mock", framework_type="C", seed=42, max_backtests=2)])
+    assert len(again) == 2

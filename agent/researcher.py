@@ -31,6 +31,11 @@ class Researcher:
         self.proposal_count = 0
         self.last_parse_failed = False
 
+    @property
+    def usage(self):
+        """Cumulative LLMUsage of the underlying LLM client."""
+        return self.llm_client.usage
+
     def update_memory(self, spec: StrategySpec, metrics: Dict[str, Any], reflection: Optional[str] = None):
         entry = {"spec": spec, "metrics": metrics}
         if reflection:

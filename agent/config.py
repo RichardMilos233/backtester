@@ -17,13 +17,15 @@ class DataSplitConfig:
 
 ALLOWED_FRAMEWORKS = (
     "A", "B", "C", "D",
-    "C-sota", "C-corr", "C-reflect", "C-hier"
+    "C-sota", "C-corr", "C-reflect", "C-hier",
+    "R-random", "R-grid",               # Non-LLM baselines (same search budget, no LLM calls)
 )
 
 @dataclass
 class ExperimentConfig:
-    framework_type: str = "B"           # Allowed: A, B, C, D, C-sota, C-corr, C-reflect, C-hier
+    framework_type: str = "B"           # Allowed: A, B, C, D, C-sota, C-corr, C-reflect, C-hier, R-random, R-grid
     model: str = "mock"                 # Foundation model name or "mock"
+    task_id: str = "SPY_full"           # Benchmark task (see agent/tasks.py); determines data + oracle
     max_iterations: int = 10            # Stop condition: max iterations (legacy)
     max_backtests: int = 8              # Fair budget: max evaluated backtests on search set
     max_proposals_multiplier: int = 3   # Safety limit: max proposals = max_backtests * multiplier
