@@ -34,6 +34,7 @@ class ExperimentConfig:
         "sharpe_ratio", "max_drawdown", "turnover", "total_return"
     ])                                  # Knob: metrics fed back in prompt
     selection_metric: str = "sharpe_ratio" # Knob: metric used by Orchestrator on selection set
+    early_stop: bool = True             # Benchmark runs set False so every method spends the full budget
     min_improvement: float = 0.01       # Stop condition: early stopping threshold
     patience: int = 3                   # Stop condition: patience rounds
     seed: int = 42                      # Reproducibility seed

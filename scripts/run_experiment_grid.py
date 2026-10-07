@@ -93,9 +93,9 @@ def print_summary_table(df: pd.DataFrame, group_col: str):
     print("=" * 110 + "\n")
 
 
-def build_configs(tasks, models, infras, seeds, budget):
+def build_configs(tasks, models, infras, seeds, budget, early_stop=False):
     return [
-        ExperimentConfig(task_id=t, model=m, framework_type=f, seed=s, max_backtests=budget)
+        ExperimentConfig(task_id=t, model=m, framework_type=f, seed=s, max_backtests=budget, early_stop=early_stop)
         for t in tasks for m in models for f in infras for s in seeds
     ]
 
@@ -112,6 +112,8 @@ def main():
     parser.add_argument("--tasks", nargs="+", default=None, help="Task ids (see agent/tasks.py)")
     parser.add_argument("--suite", choices=sorted(SUITES), default=None, help="Named task suite for --mode benchmark")
     parser.add_argument("--with-baselines", action="store_true", help="Also run R-random/R-grid (model=none) on every task")
+    parser.add_argument("--early-stop", action="store_true",
+                        help="Re-enable patience-based early stopping (off by default so every method spends the full budget)")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--no-resume", action="store_true")
     args = parser.parse_args()
@@ -123,19 +125,19 @@ def main():
 
     if args.mode == "smoke":
         out_dir = Path(args.output_dir or "docs/experiments/grid_smoke")
-        configs = build_configs(["SPY_full"], ["mock"], ["C"], [42], 2)
+        configs = build_configs(["SPY_full"], ["mock"], ["C"], [42], 2, args.early_stop)
 
     elif args.mode == "phase1":
-        configs = build_configs(["SPY_full"], args.models or DEFAULT_PHASE1_MODELS, ["C"], seeds, args.budget)
+        configs = build_configs(["SPY_full"], args.models or DEFAULT_PHASE1_MODELS, ["C"], seeds, args.budget, args.early_stop)
 
     elif args.mode == "phase2":
         group_col = "framework_type"
-        configs = build_configs(["SPY_full"], [args.base_model], args.infras or DEFAULT_PHASE2_INFRAS, seeds, args.budget)
+        configs = build_configs(["SPY_full"], [args.base_model], args.infras or DEFAULT_PHASE2_INFRAS, seeds, args.budget, args.early_stop)
 
     elif args.mode == "baselines":
         group_col = "framework_type"
         tasks = args.tasks or SUITES.get(args.suite or "smoke")
-        configs = build_configs(tasks, ["none"], BASELINE_INFRAS, seeds, args.budget)
+        configs = build_configs(tasks, ["none"], BASELINE_INFRAS, seeds, args.budget, args.early_stop)
 
     elif args.mode in ("benchmark", "custom"):
         if args.mode == "benchmark":
@@ -145,9 +147,9 @@ def main():
         models = args.models or [args.base_model]
         infras = args.infras or ["C"]
         group_col = "model" if len(models) > len(infras) else "framework_type"
-        configs = build_configs(tasks, models, infras, seeds, args.budget)
+        configs = build_configs(tasks, models, infras, seeds, args.budget, args.early_stop)
         if args.with_baselines:
-            configs += build_configs(tasks, ["none"], BASELINE_INFRAS, seeds, args.budget)
+            configs += build_configs(tasks, ["none"], BASELINE_INFRAS, seeds, args.budget, args.early_stop)
 
     for t in sorted({c.task_id for c in configs}):
         get_task(t)  # fail fast on unknown ids

@@ -12,6 +12,14 @@ from agent.reviewer import Reviewer
 from agent.space import enumerate_space, spec_key
 
 
+def _prompt_version() -> str:
+    try:
+        from agent.researcher import PROMPT_VERSION
+        return str(PROMPT_VERSION)
+    except ImportError:
+        return "v1"
+
+
 class StrategyOrchestrator:
     def __init__(
         self,
@@ -429,6 +437,8 @@ class StrategyOrchestrator:
         return self._evaluate_baseline_specs(specs)
 
     def _check_early_stop(self) -> bool:
+        if not getattr(self.config, "early_stop", True):
+            return False
         if len(self.search_results) < self.config.patience + 1:
             return False
         metric = self.config.selection_metric
@@ -497,6 +507,7 @@ class StrategyOrchestrator:
             "test_metrics": test_metrics,
             "overfitting_gap": overfitting_gap,
             "search_candidates_count": len(self.evaluated_specs),
+            "prompt_version": _prompt_version(),
             "llm_usage": self.llm_usage(),
             "trajectory": self.search_trajectory(),
         }
