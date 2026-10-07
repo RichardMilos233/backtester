@@ -30,8 +30,17 @@ import pandas as pd
 from agent.config import ExperimentConfig
 from agent.grid import ExperimentGridRunner
 from agent.tasks import SUITE_CORE, SUITE_FULL, SUITE_SMOKE, get_task
+from agent.space import LATTICE_VERSION
 
-ORACLE_DIR = REPO_ROOT / "docs/experiments/oracle"
+# Oracle tables are per-lattice; default to the directory matching the current lattice so a
+# v2 run never silently scores against v1 tables (see LATTICE_VERSION in agent/space.py).
+_DEFAULT_ORACLE_DIRS = {
+    "v1": "docs/experiments/oracle",
+    "v2": "docs/experiments/oracle_v2",
+}
+ORACLE_DIR = REPO_ROOT / _DEFAULT_ORACLE_DIRS.get(
+    LATTICE_VERSION, f"docs/experiments/oracle_{LATTICE_VERSION}"
+)
 
 DEFAULT_PHASE1_MODELS = [
     "gpt-5.6-sol",
@@ -117,9 +126,8 @@ def main():
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--no-resume", action="store_true")
     parser.add_argument("--oracle-dir", default=None,
-                        help="Directory holding <task_id>.csv.gz oracle tables. "
-                             "Defaults to docs/experiments/oracle (v1). Point this at "
-                             "docs/experiments/oracle_v2 to score against the v2 lattice.")
+                        help=f"Directory holding <task_id>.csv.gz oracle tables "
+                             f"(default: {ORACLE_DIR.relative_to(REPO_ROOT)}, driven by LATTICE_VERSION={LATTICE_VERSION})")
     args = parser.parse_args()
 
     seeds = args.seeds or [42, 43, 44, 45, 46]
