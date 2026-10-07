@@ -3,6 +3,8 @@ from typing import Optional, List, Dict, Any
 from agent.spec import StrategySpec
 from agent.llm import BaseLLMClient
 
+PROMPT_VERSION = "v2"
+
 SYSTEM_PROMPT = """You are a quantitative CTA research agent.
 Your objective is to propose profitable, sound CTA strategies avoiding overfitting.
 You must output ONLY valid JSON matching the following schema:
@@ -10,11 +12,26 @@ You must output ONLY valid JSON matching the following schema:
   "spec_id": "<string>",
   "hypothesis": "<string explaining economic/statistical rationale>",
   "signal_type": "<'momentum' or 'macd'>",
-  "params": {"<param_name>": <value>}
+  "params": {"<param_name>": <value>},
+  "use_vol_scaling": <bool, optional, default false>,
+  "vol_target": <float, optional, annualised volatility target e.g. 0.10-0.20>,
+  "max_leverage": <float, optional, max leverage multiplier ≤ 2.0, only used with vol scaling>,
+  "allowed_regimes": <list of "Q1".."Q4" or null, optional>
 }
 Rules:
 - momentum params: {"window": integer between 2 and 260 (e.g. 20, 50, 120, 252)}
 - macd params: {"fast": int, "slow": int, "signal_span": int} with 1 < fast < slow and signal_span > 1
+- use_vol_scaling (optional): if true, signal is scaled so realised vol targets vol_target; omit or false to disable
+- vol_target (optional): annualised volatility target, e.g. 0.10 to 0.20; ignored unless use_vol_scaling=true
+- max_leverage (optional): maximum position scale factor ≤ 2.0; only applies with vol_scaling; default 1.5
+- allowed_regimes (optional): filter which market regimes the strategy trades in.
+  Regimes are volume × volatility quadrants relative to rolling 1-year medians:
+    Q1 = high-volatility / high-volume (trending, liquid)
+    Q2 = high-volatility / low-volume  (volatile, thin)
+    Q3 = low-volatility  / low-volume  (quiet, thin)
+    Q4 = low-volatility  / high-volume (calm, liquid)
+  When set, the strategy is FLAT (signal=0) outside the allowed regimes.
+  Null or omitted means trade in all regimes.
 """
 
 class Researcher:
@@ -56,8 +73,16 @@ class Researcher:
             for item in self.memory:
                 spec = item["spec"]
                 metrics = item["metrics"]
+                # Build overlay description for vol/regime settings
+                overlay_parts = []
+                if spec.use_vol_scaling:
+                    vt = spec.vol_target if spec.vol_target is not None else 0.15
+                    overlay_parts.append(f"vol_target={vt}, max_leverage={spec.max_leverage}")
+                if spec.allowed_regimes:
+                    overlay_parts.append(f"allowed_regimes={spec.allowed_regimes}")
+                overlay_str = f" | Overlay: {', '.join(overlay_parts)}" if overlay_parts else ""
                 line = (
-                    f"- Spec {spec.spec_id} ({spec.signal_type}, {spec.params}): "
+                    f"- Spec {spec.spec_id} ({spec.signal_type}, {spec.params}{overlay_str}): "
                     f"Metrics: {metrics}"
                 )
                 if "reflection" in item:

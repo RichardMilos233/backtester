@@ -99,6 +99,9 @@ class MockLLMClient(BaseLLMClient):
         else:
             revision_note = None
 
+        # Every 3rd call: emit a spec with vol scaling and/or allowed_regimes
+        emit_overlay = (self.call_count % 3 == 0)
+
         if pick_momentum:
             # Pick a safe window between 10 and 200
             window = self.rng.choice([10, 20, 30, 50, 60, 100, 120, 150, 200])
@@ -134,6 +137,22 @@ class MockLLMClient(BaseLLMClient):
                 "signal_type": "macd",
                 "params": {"fast": fast, "slow": slow, "signal_span": span}
             }
+
+        if emit_overlay:
+            # Deterministically alternate between vol-only, regime-only, and combined
+            overlay_mode = (self.call_count // 3) % 3
+            if overlay_mode == 0:
+                spec_dict["use_vol_scaling"] = True
+                spec_dict["vol_target"] = 0.15
+                spec_dict["max_leverage"] = 1.5
+            elif overlay_mode == 1:
+                spec_dict["allowed_regimes"] = ["Q1", "Q4"]
+            else:
+                spec_dict["use_vol_scaling"] = True
+                spec_dict["vol_target"] = 0.12
+                spec_dict["max_leverage"] = 1.5
+                spec_dict["allowed_regimes"] = ["Q1", "Q2"]
+
         response = json.dumps(spec_dict)
         # Deterministic token estimate (~4 chars/token); latency fixed at 0 for reproducibility.
         self.record(

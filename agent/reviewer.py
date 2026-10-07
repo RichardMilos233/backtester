@@ -11,14 +11,18 @@ class ReviewResult:
 
 
 def _same_strategy(a: StrategySpec, b: StrategySpec) -> bool:
-    """Two specs are duplicates only if signal, params AND the vol-scaling overlay all match."""
+    """Two specs are duplicates only if signal, params, vol-scaling overlay AND regime filter all match."""
     if a.signal_type != b.signal_type or a.params != b.params:
         return False
     if bool(a.use_vol_scaling) != bool(b.use_vol_scaling):
         return False
-    if not a.use_vol_scaling:
-        return True
-    return (a.vol_target or 0.15) == (b.vol_target or 0.15) and a.max_leverage == b.max_leverage
+    if a.use_vol_scaling:
+        if (a.vol_target or 0.15) != (b.vol_target or 0.15) or a.max_leverage != b.max_leverage:
+            return False
+    # allowed_regimes comparison: normalize to sorted tuples for stable equality
+    a_regimes = tuple(sorted(a.allowed_regimes)) if a.allowed_regimes else None
+    b_regimes = tuple(sorted(b.allowed_regimes)) if b.allowed_regimes else None
+    return a_regimes == b_regimes
 
 
 class Reviewer:

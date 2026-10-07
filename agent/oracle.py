@@ -5,9 +5,15 @@ and Test splits of a task.
 Why: raw Test Sharpe is dominated by the market regime of the split, not by the
 agent. Scoring an agent's pick against the full distribution of the space it was
 searching (percentile on Val, regret vs. the best Test spec) removes that.
+
+When the lattice is too large (e.g. with regimes, ~108k specs), use
+build_oracle_table(..., sample=N) to evaluate a uniform random sample instead of
+exhaustive enumeration. Percentile estimates from a sampled table are
+approximations; see OracleScorer docstring.
 """
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from typing import Callable, Dict, Iterable, Optional
@@ -16,18 +22,56 @@ import numpy as np
 import pandas as pd
 
 from agent.evaluator import StrategyEvaluator
-from agent.space import enumerate_space, spec_key
+from agent.space import enumerate_space, sample_space, spec_key, _count_space
 from agent.spec import StrategySpec
 
 ORACLE_METRICS = ("sharpe_ratio", "total_return", "max_drawdown", "turnover", "calmar_ratio")
+
+_AUTO_SAMPLE_THRESHOLD = 20_000
+_AUTO_SAMPLE_DEFAULT = 20_000
 
 
 def build_oracle_table(
     evaluator: StrategyEvaluator,
     include_vol: bool = True,
+    include_regimes: bool = False,
+    sample: Optional[int] = None,
+    seed: int = 42,
     progress: Optional[Callable[[int, int], None]] = None,
 ) -> pd.DataFrame:
-    specs = enumerate_space(include_vol=include_vol)
+    """Evaluate specs from the canonical lattice and return a DataFrame indexed by spec_key.
+
+    Parameters
+    ----------
+    include_vol : bool
+        Whether to include vol-scaling overlays.
+    include_regimes : bool
+        Whether to include regime filter options.
+    sample : int or None
+        If given, evaluate a random sample of this size from the lattice instead
+        of exhaustive enumeration. When the lattice exceeds 20k specs and sample
+        is not given, defaults to 20k with a printed warning.
+    seed : int
+        RNG seed for sample_space (ignored when sample is None).
+    progress : callable or None
+        Called with (i, n) every 500 specs.
+    """
+    total_lattice = _count_space(include_vol=include_vol, include_regimes=include_regimes)
+
+    if sample is None and total_lattice > _AUTO_SAMPLE_THRESHOLD:
+        sample = _AUTO_SAMPLE_DEFAULT
+        print(
+            f"[oracle] Lattice has {total_lattice:,} specs (> {_AUTO_SAMPLE_THRESHOLD:,}). "
+            f"Defaulting to --sample {sample}. Pass sample= explicitly to suppress."
+        )
+
+    sampled = sample is not None
+    if sampled:
+        specs = sample_space(n=sample, seed=seed, include_vol=include_vol, include_regimes=include_regimes)
+    else:
+        specs = enumerate_space(include_vol=include_vol, include_regimes=include_regimes)
+
+    n_evaluated = len(specs)
     rows = []
     t0 = time.time()
     for i, spec in enumerate(specs, 1):
@@ -37,6 +81,7 @@ def build_oracle_table(
             "params": str(spec.params),
             "use_vol_scaling": spec.use_vol_scaling,
             "vol_target": spec.vol_target,
+            "allowed_regimes": str(spec.allowed_regimes) if spec.allowed_regimes else None,
         }
         for split, prefix in (("select", "val"), ("test", "test")):
             try:
@@ -47,10 +92,17 @@ def build_oracle_table(
             for k in ORACLE_METRICS:
                 row[f"{prefix}_{k}"] = m.get(k, np.nan)
         rows.append(row)
-        if progress and (i % 500 == 0 or i == len(specs)):
-            progress(i, len(specs))
+        if progress and (i % 500 == 0 or i == n_evaluated):
+            progress(i, n_evaluated)
+
     df = pd.DataFrame(rows).set_index("spec_key")
     df.attrs["elapsed_seconds"] = round(time.time() - t0, 1)
+    df.attrs["n_total_lattice"] = total_lattice
+    df.attrs["n_evaluated"] = n_evaluated
+    df.attrs["sampled"] = sampled
+    df.attrs["include_vol"] = include_vol
+    df.attrs["include_regimes"] = include_regimes
+    df.attrs["seed"] = seed
     return df
 
 
@@ -58,6 +110,19 @@ def save_oracle(df: pd.DataFrame, path: Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path)
+    # Write sidecar meta JSON alongside the CSV (or CSV.GZ)
+    meta = {
+        "n_total_lattice": df.attrs.get("n_total_lattice"),
+        "n_evaluated": df.attrs.get("n_evaluated"),
+        "sampled": df.attrs.get("sampled"),
+        "include_vol": df.attrs.get("include_vol"),
+        "include_regimes": df.attrs.get("include_regimes"),
+        "seed": df.attrs.get("seed"),
+        "elapsed_seconds": df.attrs.get("elapsed_seconds"),
+    }
+    meta_path = path.parent / (path.name.split(".")[0] + ".meta.json")
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, indent=2)
 
 
 def load_oracle(path: Path) -> pd.DataFrame:
@@ -65,7 +130,12 @@ def load_oracle(path: Path) -> pd.DataFrame:
 
 
 class OracleScorer:
-    """Converts an agent's final pick into regime-free benchmark scores."""
+    """Converts an agent's final pick into regime-free benchmark scores.
+
+    When built from a *sampled* oracle table (sampled=True in df.attrs),
+    percentile estimates are approximations based on the sample distribution.
+    The larger the sample relative to the lattice, the more accurate they are.
+    """
 
     def __init__(self, oracle: pd.DataFrame, metric: str = "sharpe_ratio"):
         self.oracle = oracle

@@ -87,3 +87,53 @@ def test_reviewer_distinguishes_vol_scaled_overlay_from_core_spec():
     r = Reviewer(allow_duplicates=False)
     assert r.review(overlay, [core]).passed
     assert not r.review(same_overlay, [core, overlay]).passed
+
+
+# --- Layer 1: reviewer _same_strategy includes allowed_regimes ---
+
+def test_reviewer_distinguishes_by_regime_filter():
+    from agent.reviewer import Reviewer, _same_strategy
+    from agent.spec import StrategySpec
+
+    base = StrategySpec("a", "hypothesis text", "momentum", {"window": 50})
+    with_regime = StrategySpec("b", "hypothesis text", "momentum", {"window": 50},
+                               allowed_regimes=["Q1", "Q4"])
+    same_regime = StrategySpec("c", "hypothesis text", "momentum", {"window": 50},
+                               allowed_regimes=["Q4", "Q1"])  # different order, same set
+
+    # normalize via validate
+    base.validate()
+    with_regime.validate()
+    same_regime.validate()
+
+    assert not _same_strategy(base, with_regime), "Different regime filter must not be a duplicate"
+    assert _same_strategy(with_regime, same_regime), "Same regime set (any order) must be a duplicate"
+
+
+def test_reviewer_blocks_duplicate_with_same_regime():
+    from agent.reviewer import Reviewer
+    from agent.spec import StrategySpec
+
+    reviewer = Reviewer(allow_duplicates=False)
+    spec1 = StrategySpec("r1", "regime strat A", "momentum", {"window": 50},
+                         allowed_regimes=["Q1", "Q2"])
+    spec2 = StrategySpec("r2", "regime strat B", "momentum", {"window": 50},
+                         allowed_regimes=["Q2", "Q1"])  # same set, order swapped
+
+    result = reviewer.review(spec2, history=[spec1])
+    assert not result.passed
+    assert "Duplicate" in result.reason
+
+
+def test_reviewer_passes_different_regime_filter():
+    from agent.reviewer import Reviewer
+    from agent.spec import StrategySpec
+
+    reviewer = Reviewer(allow_duplicates=False)
+    spec1 = StrategySpec("r1", "regime strat A", "momentum", {"window": 50},
+                         allowed_regimes=["Q1", "Q2"])
+    spec2 = StrategySpec("r2", "regime strat B", "momentum", {"window": 50},
+                         allowed_regimes=["Q3", "Q4"])
+
+    result = reviewer.review(spec2, history=[spec1])
+    assert result.passed

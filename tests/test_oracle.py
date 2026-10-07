@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from agent.oracle import OracleScorer, build_oracle_table
-from agent.space import enumerate_space, spec_key, MOMENTUM_WINDOWS
+from agent.space import enumerate_space, spec_key, MOMENTUM_WINDOWS, sample_space, _count_space, REGIME_OPTIONS
 from agent.spec import StrategySpec
 
 
@@ -63,3 +63,81 @@ def synthetic_data_module():
     rng = np.random.default_rng(0)
     prices = 100 + np.cumsum(rng.standard_normal(n))
     return pd.DataFrame({"open": prices, "high": prices + 1, "low": prices - 1, "close": prices, "volume": 1e6}, index=dates)
+
+
+# --- Layer 1: spec_key includes regimes ---
+
+def test_spec_key_differs_by_regime():
+    a = StrategySpec("a", "h", "momentum", {"window": 50})
+    b = StrategySpec("b", "h", "momentum", {"window": 50}, allowed_regimes=["Q1", "Q2"])
+    c = StrategySpec("c", "h", "momentum", {"window": 50}, allowed_regimes=["Q3", "Q4"])
+    assert spec_key(a) != spec_key(b)
+    assert spec_key(b) != spec_key(c)
+    assert spec_key(a) != spec_key(c)
+
+
+def test_spec_key_regime_is_sorted():
+    a = StrategySpec("a", "h", "momentum", {"window": 50}, allowed_regimes=["Q2", "Q1"])
+    b = StrategySpec("b", "h", "momentum", {"window": 50}, allowed_regimes=["Q1", "Q2"])
+    # validate() normalises allowed_regimes to sorted list; validate first
+    a.validate()
+    b.validate()
+    assert spec_key(a) == spec_key(b)
+
+
+# --- Layer 1: sample_space ---
+
+def test_sample_space_returns_n_distinct_specs():
+    specs = sample_space(n=50, seed=42, include_vol=True, include_regimes=True)
+    assert len(specs) == 50
+    keys = [spec_key(s) for s in specs]
+    assert len(set(keys)) == 50, "sample_space must return distinct specs"
+
+
+def test_sample_space_deterministic_by_seed():
+    specs1 = sample_space(n=30, seed=7, include_vol=True, include_regimes=True)
+    specs2 = sample_space(n=30, seed=7, include_vol=True, include_regimes=True)
+    assert [spec_key(s) for s in specs1] == [spec_key(s) for s in specs2]
+
+
+def test_sample_space_different_seeds_differ():
+    keys1 = {spec_key(s) for s in sample_space(n=20, seed=1)}
+    keys2 = {spec_key(s) for s in sample_space(n=20, seed=2)}
+    assert keys1 != keys2
+
+
+def test_sample_space_all_specs_valid():
+    specs = sample_space(n=100, seed=0, include_vol=True, include_regimes=True)
+    for s in specs:
+        ok, msg = s.validate()
+        assert ok, f"Invalid spec from sample_space: {msg}"
+
+
+def test_count_space_with_regimes():
+    base = _count_space(include_vol=True, include_regimes=False)
+    with_regimes = _count_space(include_vol=True, include_regimes=True)
+    assert with_regimes == base * len(REGIME_OPTIONS)
+
+
+def test_build_oracle_table_sampled(synthetic_data_module):
+    """A sampled oracle table should have <= sample size rows and build quickly."""
+    from agent.evaluator import StrategyEvaluator
+    import agent.space as space
+
+    ev = StrategyEvaluator(synthetic_data_module)
+    orig = (space.MOMENTUM_WINDOWS, space.MACD_FAST, space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS)
+    space.MOMENTUM_WINDOWS = [10, 20, 30]
+    space.MACD_FAST = [8]
+    space.MACD_SLOW = [20]
+    space.MACD_SPAN = [9]
+    space.VOL_TARGETS = [None, 0.15]
+    try:
+        table = build_oracle_table(ev, include_vol=True, include_regimes=False, sample=4, seed=99)
+    finally:
+        (space.MOMENTUM_WINDOWS, space.MACD_FAST,
+         space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS) = orig
+
+    assert len(table) <= 4
+    assert table.attrs.get("sampled") is True
+    assert {"val_sharpe_ratio", "test_sharpe_ratio"} <= set(table.columns)
+
