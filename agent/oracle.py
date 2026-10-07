@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from agent.evaluator import StrategyEvaluator
-from agent.space import enumerate_space, sample_space, spec_key, _count_space
+from agent.space import enumerate_space, sample_space, spec_key, _count_space, LATTICE_VERSION
 from agent.spec import StrategySpec
 
 ORACLE_METRICS = ("sharpe_ratio", "total_return", "max_drawdown", "turnover", "calmar_ratio")
@@ -103,6 +103,7 @@ def build_oracle_table(
     df.attrs["include_vol"] = include_vol
     df.attrs["include_regimes"] = include_regimes
     df.attrs["seed"] = seed
+    df.attrs["lattice_version"] = LATTICE_VERSION
     return df
 
 
@@ -119,6 +120,7 @@ def save_oracle(df: pd.DataFrame, path: Path) -> None:
         "include_regimes": df.attrs.get("include_regimes"),
         "seed": df.attrs.get("seed"),
         "elapsed_seconds": df.attrs.get("elapsed_seconds"),
+        "lattice_version": df.attrs.get("lattice_version", LATTICE_VERSION),
     }
     meta_path = path.parent / (path.name.split(".")[0] + ".meta.json")
     with open(meta_path, "w") as f:
@@ -127,6 +129,19 @@ def save_oracle(df: pd.DataFrame, path: Path) -> None:
 
 def load_oracle(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, index_col="spec_key")
+
+
+def read_oracle_lattice_version(path: Path) -> Optional[str]:
+    """Read lattice_version from the sidecar .meta.json without loading the full CSV."""
+    path = Path(path)
+    meta_path = path.parent / (path.name.split(".")[0] + ".meta.json")
+    if not meta_path.exists():
+        return None
+    try:
+        with open(meta_path) as f:
+            return json.load(f).get("lattice_version")
+    except Exception:
+        return None
 
 
 class OracleScorer:

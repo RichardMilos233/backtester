@@ -61,10 +61,10 @@ def test_researcher_usage_property_exposes_client_usage():
     assert researcher.usage.total_tokens > 0
 
 
-# --- Layer 1: researcher prompt v2 ---
+# --- Layer 1: researcher prompt v2 / v3 ---
 
-def test_prompt_version_is_v2():
-    assert PROMPT_VERSION == "v2"
+def test_prompt_version_is_v3():
+    assert PROMPT_VERSION == "v3"
 
 
 def test_system_prompt_contains_new_fields():

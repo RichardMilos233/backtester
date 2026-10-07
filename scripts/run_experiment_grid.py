@@ -116,6 +116,10 @@ def main():
                         help="Re-enable patience-based early stopping (off by default so every method spends the full budget)")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--no-resume", action="store_true")
+    parser.add_argument("--oracle-dir", default=None,
+                        help="Directory holding <task_id>.csv.gz oracle tables. "
+                             "Defaults to docs/experiments/oracle (v1). Point this at "
+                             "docs/experiments/oracle_v2 to score against the v2 lattice.")
     args = parser.parse_args()
 
     seeds = args.seeds or [42, 43, 44, 45, 46]
@@ -153,11 +157,13 @@ def main():
 
     for t in sorted({c.task_id for c in configs}):
         get_task(t)  # fail fast on unknown ids
-        if not (ORACLE_DIR / f"{t}.csv.gz").exists():
+        oracle_dir_to_check = Path(args.oracle_dir) if args.oracle_dir else ORACLE_DIR
+        if not (oracle_dir_to_check / f"{t}.csv.gz").exists():
             print(f"WARNING: no oracle for task {t}; run scripts/build_oracle.py --task {t} for normalised scores")
 
     print(f"Total configurations: {len(configs)}  ->  {out_dir}")
-    runner = ExperimentGridRunner(output_dir=out_dir, oracle_dir=ORACLE_DIR)
+    effective_oracle_dir = Path(args.oracle_dir) if args.oracle_dir else ORACLE_DIR
+    runner = ExperimentGridRunner(output_dir=out_dir, oracle_dir=effective_oracle_dir)
     summary_df = runner.run_grid(configs, resume=not args.no_resume)
     print_summary_table(summary_df, group_col=group_col)
 

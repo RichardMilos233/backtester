@@ -154,28 +154,40 @@ def compute_rsi_signal(
 
 
 def combine_signals(signals: list, mode: str = "all") -> pd.Series:
-    """Combine 0/1 long-only signals. mode="all" requires every component to
-    be long; "any" requires at least one; "majority" requires more than half.
+    """Combine long-only signals.
+
+    mode="all"      requires every component to be long; returns 0/1 int.
+    mode="any"      requires at least one; returns 0/1 int.
+    mode="majority" requires more than half; returns 0/1 int.
+    mode="mean"     returns the float average of all components (0..1).
+                    Useful when components are already 0/1 and you want a
+                    fractional position size. The caller is responsible for
+                    deciding whether to cast the result to int.
+
     Output is aligned on the union of all input indices, missing values
     filled with 0.
     """
     if not signals:
         raise ValueError("signals must be a non-empty list of Series")
-    if mode not in ("all", "any", "majority"):
-        raise ValueError("mode must be one of 'all', 'any', 'majority'")
+    if mode not in ("all", "any", "majority", "mean"):
+        raise ValueError("mode must be one of 'all', 'any', 'majority', 'mean'")
 
     idx = signals[0].index
     for s in signals[1:]:
         idx = idx.union(s.index)
 
-    aligned = [s.reindex(idx).fillna(0).astype(int) for s in signals]
+    aligned = [s.reindex(idx).fillna(0) for s in signals]
     stacked = pd.concat(aligned, axis=1)
 
+    if mode == "mean":
+        return stacked.mean(axis=1).astype(float)
+
+    int_stacked = stacked.astype(int)
     if mode == "all":
-        out = stacked.astype(bool).all(axis=1)
+        out = int_stacked.astype(bool).all(axis=1)
     elif mode == "any":
-        out = stacked.astype(bool).any(axis=1)
-    else:
-        out = stacked.sum(axis=1) > (len(signals) / 2.0)
+        out = int_stacked.astype(bool).any(axis=1)
+    else:  # majority
+        out = int_stacked.sum(axis=1) > (len(signals) / 2.0)
 
     return out.astype(int)

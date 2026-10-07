@@ -8,8 +8,8 @@ from agent.config import ExperimentConfig
 from agent.evaluator import StrategyEvaluator
 from agent.orchestrator import StrategyOrchestrator
 from agent.llm import BaseLLMClient, MockLLMClient
-from agent.oracle import OracleScorer, load_oracle
-from agent.space import spec_key
+from agent.oracle import OracleScorer, load_oracle, read_oracle_lattice_version
+from agent.space import spec_key, LATTICE_VERSION
 from agent.spec import StrategySpec
 from agent.tasks import get_task
 
@@ -54,7 +54,23 @@ class ExperimentGridRunner:
             return None
         if task_id not in self._scorers:
             path = self.oracle_dir / f"{task_id}.csv.gz"
-            self._scorers[task_id] = OracleScorer(load_oracle(path)) if path.exists() else None
+            if not path.exists():
+                self._scorers[task_id] = None
+            else:
+                oracle_lv = read_oracle_lattice_version(path)
+                if oracle_lv is not None and oracle_lv != LATTICE_VERSION:
+                    # Lattice mismatch: percentiles computed against a different lattice
+                    # are meaningless. Record None so _oracle_columns flags the row.
+                    print(
+                        f"[grid] WARNING: oracle {path.name} has lattice_version={oracle_lv!r} "
+                        f"but current code is {LATTICE_VERSION!r}. "
+                        f"Oracle scores will be set to None and lattice_mismatch=True."
+                    )
+                    self._scorers[task_id] = None
+                    self._lattice_mismatch: "Set[str]" = getattr(self, "_lattice_mismatch", set())
+                    self._lattice_mismatch.add(task_id)
+                else:
+                    self._scorers[task_id] = OracleScorer(load_oracle(path))
         return self._scorers[task_id]
 
     def _get_completed_keys(self) -> Set[Tuple[str, str, str, int]]:
@@ -222,15 +238,30 @@ class ExperimentGridRunner:
     def _oracle_columns(self, task_id: str, best_spec: Dict[str, Any], evaluator: StrategyEvaluator) -> Dict[str, Any]:
         cols: Dict[str, Any] = {k: None for k in self._ORACLE_COLS}
         if not best_spec:
+            # Check mismatch before returning (scorer_for may need to be called to detect it)
+            self.scorer_for(task_id)
+            lattice_mismatches: "Set[str]" = getattr(self, "_lattice_mismatch", set())
+            cols["lattice_mismatch"] = task_id in lattice_mismatches
+            cols["lattice_version"] = LATTICE_VERSION
             return cols
         try:
             spec = StrategySpec.from_dict(best_spec)
             cols["spec_key"] = spec_key(spec)
             scorer = self.scorer_for(task_id)
+            # Read mismatch AFTER scorer_for so the set is populated
+            lattice_mismatches = getattr(self, "_lattice_mismatch", set())
+            cols["lattice_mismatch"] = task_id in lattice_mismatches
+            cols["lattice_version"] = LATTICE_VERSION
             if scorer is not None:
                 cols.update(scorer.score_spec(spec, evaluator))
+                # score_spec may overwrite lattice_version; restore the flag
+                cols["lattice_mismatch"] = task_id in lattice_mismatches
+                cols["lattice_version"] = LATTICE_VERSION
         except Exception as e:  # scoring must never fail a run
             cols["oracle_error"] = str(e)
+            lattice_mismatches = getattr(self, "_lattice_mismatch", set())
+            cols["lattice_mismatch"] = task_id in lattice_mismatches
+            cols["lattice_version"] = LATTICE_VERSION
         return cols
 
     def _append_summary_row(self, row: Dict[str, Any]):

@@ -8,6 +8,10 @@ from src.signals import (
     compute_moving_average_signal,
     compute_macd_signal,
     compute_volatility_scaled_signal,
+    compute_mean_reversion_signal,
+    compute_breakout_signal,
+    compute_rsi_signal,
+    combine_signals,
 )
 from src.regimes import classify_market_regimes
 from src.backtest import Backtest
@@ -86,21 +90,77 @@ class StrategyEvaluator:
     def split_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         return self._search_df, self._select_df, self._test_df
 
+    @staticmethod
+    def _warmup_window_for(spec: StrategySpec) -> int:
+        """Max lookback the indicator needs to warm up, used to size the buffer."""
+        st = spec.signal_type
+        p = spec.params
+        if st == "momentum":
+            return p["window"]
+        if st == "macd":
+            return p.get("slow", 26) + p.get("signal_span", 9)
+        if st == "mean_reversion":
+            return p["window"]
+        if st == "breakout":
+            return p["entry_window"]
+        if st == "rsi":
+            return p["window"] * 2
+        if st == "combo":
+            # Take the largest warm-up among the components.
+            return max(
+                StrategyEvaluator._warmup_window_for(
+                    StrategySpec("c", "c", comp["signal_type"], dict(comp.get("params", {})))
+                )
+                for comp in p.get("components", [])
+            )
+        raise ValueError(f"Unsupported signal_type: {st}")
+
+    def _build_component_signal(
+        self, component: Dict[str, Any], warmup_df: pd.DataFrame
+    ) -> pd.Series:
+        """Compute the base 0/1 signal for one combo component on the warm-up frame."""
+        st = component["signal_type"]
+        p = dict(component.get("params", {}))
+        if st == "momentum":
+            return compute_moving_average_signal(warmup_df, window=p["window"])
+        if st == "macd":
+            return compute_macd_signal(
+                warmup_df, fast=p["fast"], slow=p["slow"], signal_span=p["signal_span"]
+            )
+        if st == "mean_reversion":
+            return compute_mean_reversion_signal(
+                warmup_df, window=p["window"], entry_z=p["entry_z"], exit_z=p["exit_z"]
+            )
+        if st == "breakout":
+            return compute_breakout_signal(
+                warmup_df, entry_window=p["entry_window"], exit_window=p["exit_window"]
+            )
+        if st == "rsi":
+            return compute_rsi_signal(
+                warmup_df, window=p["window"], lower=p["lower"], upper=p["upper"], mode=p["mode"]
+            )
+        raise ValueError(f"Unsupported component signal_type: {st}")
+
     def _generate_signals_for_split(self, spec: StrategySpec, split_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Calculates signals strictly forward in time.
         Uses historical lookback buffer from full df to warm up indicators without lookahead leakage.
 
+        Order of operations on the split portion:
+          1. build base signal on the warm-up buffer
+          2. apply regime mask on the split portion
+          3. vol-scale (if enabled)
+          4. cast: int when the signal is entirely in {0,1}, otherwise float
+
+        For combo specs, base signals for each component are built on the same
+        warm-up frame and combined via ``src.signals.combine_signals``. The
+        ``mean`` combination mode produces fractional weights, so the final cast
+        keeps the float dtype in that case.
+
         Regime mask (if spec.allowed_regimes is set) is applied BEFORE vol scaling.
         Days with NaN regime (warm-up period of ~1.25 years) are treated as allowed.
         """
-        # Determine warm-up window needed
-        if spec.signal_type == "momentum":
-            window = spec.params["window"]
-        elif spec.signal_type == "macd":
-            window = spec.params.get("slow", 26) + spec.params.get("signal_span", 9)
-        else:
-            raise ValueError(f"Unsupported signal_type: {spec.signal_type}")
+        window = self._warmup_window_for(spec)
 
         start_loc = self.df.index.get_loc(split_df.index[0])
         buffer_start = max(0, start_loc - window * 2)
@@ -115,6 +175,35 @@ class StrategyEvaluator:
                 slow=spec.params["slow"],
                 signal_span=spec.params["signal_span"]
             )
+        elif spec.signal_type == "mean_reversion":
+            full_signal = compute_mean_reversion_signal(
+                warmup_df,
+                window=spec.params["window"],
+                entry_z=spec.params["entry_z"],
+                exit_z=spec.params["exit_z"],
+            )
+        elif spec.signal_type == "breakout":
+            full_signal = compute_breakout_signal(
+                warmup_df,
+                entry_window=spec.params["entry_window"],
+                exit_window=spec.params["exit_window"],
+            )
+        elif spec.signal_type == "rsi":
+            full_signal = compute_rsi_signal(
+                warmup_df,
+                window=spec.params["window"],
+                lower=spec.params["lower"],
+                upper=spec.params["upper"],
+                mode=spec.params["mode"],
+            )
+        elif spec.signal_type == "combo":
+            components = spec.params["components"]
+            comp_signals = [
+                self._build_component_signal(c, warmup_df) for c in components
+            ]
+            full_signal = combine_signals(comp_signals, mode=spec.params["mode"])
+        else:
+            raise ValueError(f"Unsupported signal_type: {spec.signal_type}")
 
         # Slice to split range first, then apply regime mask (before vol scaling)
         split_signal = full_signal.loc[split_df.index]
@@ -140,7 +229,13 @@ class StrategyEvaluator:
             )
             split_signal = full_scaled.loc[split_df.index].fillna(0).astype(float)
         else:
-            split_signal = split_signal.fillna(0).astype(int)
+            # Cast to int only when the signal is entirely in {0,1}; otherwise
+            # keep the float (e.g. combo mode="mean" yields fractional weights).
+            unique_vals = set(pd.unique(split_signal.dropna()))
+            if unique_vals <= {0, 1}:
+                split_signal = split_signal.fillna(0).astype(int)
+            else:
+                split_signal = split_signal.fillna(0).astype(float)
 
         return split_df, split_signal
 

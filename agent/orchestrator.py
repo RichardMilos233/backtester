@@ -9,7 +9,7 @@ from agent.spec import StrategySpec
 from agent.llm import BaseLLMClient, MockLLMClient, LLMUsage
 from agent.researcher import Researcher
 from agent.reviewer import Reviewer
-from agent.space import enumerate_space, spec_key
+from agent.space import enumerate_space, spec_key, baseline_space
 
 
 def _prompt_version() -> str:
@@ -408,9 +408,15 @@ class StrategyOrchestrator:
         )
 
     def _run_random_search(self) -> Dict[str, Any]:
-        """R-random: uniform sample (without replacement) of `budget` specs from the full lattice
-        (incl. vol-scaling overlays). No LLM, no early stop."""
-        space = enumerate_space(include_vol=True)
+        """R-random: uniform sample (without replacement) of `budget` specs from the canonical
+        current lattice (``baseline_space``), which includes all signal types and vol-scaling
+        overlays. No LLM, no early stop.
+
+        Note: The lattice is now in the millions when all signal types are included; R-random
+        is the meaningful baseline. R-grid becomes degenerate (uninformative) because evenly
+        spacing over a multi-million-spec lattice yields a nearly arbitrary selection.
+        """
+        space = baseline_space(n=self.budget * 100, seed=self.config.seed)
         rng = random.Random(self.config.seed)
         picks = rng.sample(space, min(self.budget, len(space)))
         specs = [
@@ -420,9 +426,18 @@ class StrategyOrchestrator:
         return self._evaluate_baseline_specs(specs)
 
     def _run_grid_search(self) -> Dict[str, Any]:
-        """R-grid: deterministic, seed-independent, evenly spaced subset of the no-vol lattice
-        (sorted by spec_key) with exactly `budget` entries. No LLM, no early stop."""
-        space = sorted(enumerate_space(include_vol=False), key=spec_key)
+        """R-grid: deterministic, seed-independent, evenly spaced subset of the canonical
+        current lattice (``baseline_space``, no vol overlays for sortability) with exactly
+        `budget` entries. No LLM, no early stop.
+
+        Note: R-grid is essentially uninformative when the lattice is in the millions because
+        even spacing over an enormous irregular multi-type space has no geometric meaning.
+        Prefer R-random as the primary non-LLM baseline when using the full v2 lattice.
+        """
+        # Use a moderate sample for grid sortability; restrict to the legacy signal types
+        # so the sorted order has a deterministic structure across runs.
+        from agent.space import LEGACY_SIGNAL_TYPES
+        space = sorted(enumerate_space(include_vol=False, signal_types=LEGACY_SIGNAL_TYPES), key=spec_key)
         n, k = len(space), min(self.budget, len(space))
         if k <= 0:
             indices: List[int] = []
