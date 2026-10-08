@@ -16,13 +16,13 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Callable, Dict, Iterable, Optional
+from typing import Tuple, Callable, Dict, Iterable, Optional
 
 import numpy as np
 import pandas as pd
 
 from agent.evaluator import StrategyEvaluator
-from agent.space import enumerate_space, sample_space, spec_key, _count_space, LATTICE_VERSION
+from agent.space import enumerate_space, sample_space, spec_key, _count_space, LATTICE_VERSION, ALL_SIGNAL_TYPES
 from agent.spec import StrategySpec
 
 ORACLE_METRICS = ("sharpe_ratio", "total_return", "max_drawdown", "turnover", "calmar_ratio")
@@ -38,6 +38,7 @@ def build_oracle_table(
     sample: Optional[int] = None,
     seed: int = 42,
     progress: Optional[Callable[[int, int], None]] = None,
+    signal_types: Optional[Tuple[str, ...]] = None,
 ) -> pd.DataFrame:
     """Evaluate specs from the canonical lattice and return a DataFrame indexed by spec_key.
 
@@ -56,7 +57,10 @@ def build_oracle_table(
     progress : callable or None
         Called with (i, n) every 500 specs.
     """
-    total_lattice = _count_space(include_vol=include_vol, include_regimes=include_regimes)
+    if signal_types is None:
+        signal_types = ALL_SIGNAL_TYPES  # the canonical v2 lattice; pass LEGACY_SIGNAL_TYPES for v1
+    total_lattice = _count_space(include_vol=include_vol, include_regimes=include_regimes,
+                                 signal_types=signal_types)
 
     if sample is None and total_lattice > _AUTO_SAMPLE_THRESHOLD:
         sample = _AUTO_SAMPLE_DEFAULT
@@ -67,9 +71,11 @@ def build_oracle_table(
 
     sampled = sample is not None
     if sampled:
-        specs = sample_space(n=sample, seed=seed, include_vol=include_vol, include_regimes=include_regimes)
+        specs = sample_space(n=sample, seed=seed, include_vol=include_vol, include_regimes=include_regimes,
+                             signal_types=signal_types)
     else:
-        specs = enumerate_space(include_vol=include_vol, include_regimes=include_regimes)
+        specs = enumerate_space(include_vol=include_vol, include_regimes=include_regimes,
+                                signal_types=signal_types)
 
     n_evaluated = len(specs)
     rows = []

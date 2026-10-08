@@ -45,7 +45,7 @@ def test_build_oracle_table_small(synthetic_data_module):
     space.MOMENTUM_WINDOWS, space.MACD_FAST, space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS = \
         [10, 20], [8], [20], [9], [None, 0.15]
     try:
-        table = build_oracle_table(ev)
+        table = build_oracle_table(ev, signal_types=space.LEGACY_SIGNAL_TYPES)
     finally:
         space.MOMENTUM_WINDOWS, space.MACD_FAST, space.MACD_SLOW, space.MACD_SPAN, space.VOL_TARGETS = orig
     assert len(table) == 6
@@ -141,3 +141,13 @@ def test_build_oracle_table_sampled(synthetic_data_module):
     assert table.attrs.get("sampled") is True
     assert {"val_sharpe_ratio", "test_sharpe_ratio"} <= set(table.columns)
 
+
+
+def test_build_oracle_table_default_covers_all_signal_types(synthetic_data_module):
+    """Regression: the first v2 oracle build silently sampled only momentum/macd."""
+    from agent.evaluator import StrategyEvaluator
+    import agent.space as space
+    ev = StrategyEvaluator(synthetic_data_module)
+    table = build_oracle_table(ev, include_regimes=True, sample=300, seed=7)
+    assert set(table["signal_type"]) == set(space.ALL_SIGNAL_TYPES)
+    assert table.attrs["n_total_lattice"] == space._count_space(True, True, space.ALL_SIGNAL_TYPES)
