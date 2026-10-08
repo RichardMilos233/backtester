@@ -25,7 +25,7 @@ def load_market_data(tickers: list[str]) -> dict[str, pd.DataFrame]:
         df.columns = pd.MultiIndex.from_product([df.columns, [ticker]])
         frames.append(df)
 
-    panel = pd.concat(frames, axis=1).sort_index()
+    panel = pd.concat(frames, axis=1).dropna().sort_index()
     prices = {field: panel[field] for field in FIELDS}
     prices['return'] = prices['close'].pct_change()
     prices['forward_return'] = prices['close'].shift(-1) / prices['close'] - 1

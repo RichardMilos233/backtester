@@ -9,7 +9,7 @@ class Backtest:
         initial_capital: float = 100000.0,
         slippage_rate: float = 0.0005,
         commission_rate: float = 0.0005,
-        rebalance_tolerance: float = 0.05,
+        rebalance_tolerance: float = 0.01,
     ):
         self.initial_capital = initial_capital
         self.slippage_rate = slippage_rate
@@ -63,20 +63,26 @@ class Backtest:
                     continue
 
                 delta_value = v_open * weight - positions[asset] * open_price
-                if delta_value == 0 or abs(delta_value) < self.rebalance_tolerance * v_open:
+                if delta_value == 0 or (weight != 0 and abs(delta_value) < self.rebalance_tolerance * v_open):
                     continue
 
                 if delta_value > 0:
-                    unit_cash = open_price * (1 + self.slippage_rate) * (1 + self.commission_rate)
                     execution_price = open_price * (1 + self.slippage_rate)
                 else:
-                    unit_cash = open_price * (1 - self.slippage_rate) * (1 - self.commission_rate)
                     execution_price = open_price * (1 - self.slippage_rate)
 
-                trade_units = math.trunc(delta_value / unit_cash)
+                unit_cash = execution_price * (1 + self.commission_rate)
+                if weight == 0:
+                    trade_units = -positions[asset]
+                else:
+                    trade_units = math.trunc(delta_value / unit_cash)
+                    # Never cross zero when the target stays on the same side.
+                    if positions[asset] * weight > 0 and (positions[asset] + trade_units) * weight < 0:
+                        trade_units = -positions[asset]
+                        
                 if trade_units == 0:
                     continue
-                cash -= trade_units * unit_cash
+                cash -= trade_units * execution_price + abs(trade_units) * execution_price * self.commission_rate
                 positions[asset] += trade_units
                 day_commission += abs(trade_units) * execution_price * self.commission_rate
                 traded_value += abs(trade_units * open_price)

@@ -9,23 +9,34 @@ import src.strategies as strategy
 from src.backtest import Backtest
 from src.data import load_market_data
 from src.metrics import compute_strategy_metrics
+from src.regimes import classify_market_regimes
 
 
 def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
     """Load data, build target weights from the strategy, backtest them, and print the metrics."""
     prices = load_market_data(tickers)
-    weights = strategy.compute_macd_signal(prices['close'])
+    regimes = classify_market_regimes(prices['return'], prices['volume'])
+
+    # Leave one line uncommented.
+    weights = strategy.sma_cross(prices['close'])
+    # weights = strategy.macd(prices['close'])
+    # weights = strategy.rsi(prices['close'])
+    # weights = strategy.bollinger(prices['close'])
+    # weights = strategy.random_forest(prices, regimes)
+    # weights = strategy.ridge(prices, regimes)
+    # weights = strategy.pca(prices, regimes)
+    # weights = strategy.hybrid(prices, regimes)
 
     bt = Backtest(
         initial_capital=100000.0,
         slippage_rate=0.0005,
         commission_rate=0.0005,
-        rebalance_tolerance=0.05,
+        rebalance_tolerance=0.01,
     )
     result = bt.run(prices['open'], prices['close'], weights)
     metrics = compute_strategy_metrics(result)
 
-    print(f"\nTickers: {', '.join(tickers)}    Strategy: {strategy.compute_macd_signal.__name__}")
+    print(f"\nTickers: {', '.join(tickers)}")
     print("=" * 45)
     print(metrics.round(4).to_string())
     print("=" * 45)
@@ -38,4 +49,4 @@ def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
 
 
 if __name__ == '__main__':
-    run()
+    run(['SPY', 'TLT', 'GLD', 'USO', 'FXE'])
