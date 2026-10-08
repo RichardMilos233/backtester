@@ -293,11 +293,29 @@
   </tbody>
 </table>
 
-<div class="callout bad">
-  <strong>读法。</strong>三个 LLM 架构互相分不出差别，而且都输给随机搜索。原因不是 LLM 不行，是空间太小太平：一万多个点里前十名夏普只差 0.1，随机抽 8 次就到 0.89 分位，推理没地方发挥。这也是一个教训：裸 Test 夏普上 LLM 是赢的（它们都挑了 momentum 120 这类教科书参数，而 2024–26 的 SPY 恰好奖励长周期动量），如果只看那个数字会得出相反的结论。
+
+<p>v2 空间（153,090 个点，新增均值回归、突破、RSI、信号组合、regime 过滤、波动率缩放），同样 8 任务 × 5 种子 × 预算 8，deepseek-chat，早停关闭：</p>
+
+<table>
+  <thead><tr><th>方法</th><th>percentile_val</th><th class="num">95% CI</th><th class="num">token / 次</th></tr></thead>
+  <tbody>
+    <tr><td>R-grid</td><td><span class="bar base"><i style="width:86%"></i></span>0.861</td><td class="num">0.82 – 0.90</td><td class="num">0</td></tr>
+    <tr><td>R-random</td><td><span class="bar base"><i style="width:85%"></i></span>0.851</td><td class="num">0.81 – 0.89</td><td class="num">0</td></tr>
+    <tr><td>C</td><td><span class="bar"><i style="width:81%"></i></span>0.811</td><td class="num">0.74 – 0.88</td><td class="num">~7k</td></tr>
+    <tr><td>C-sota</td><td><span class="bar"><i style="width:78%"></i></span>0.783</td><td class="num">0.71 – 0.84</td><td class="num">~7k</td></tr>
+    <tr><td>C-corr</td><td><span class="bar"><i style="width:78%"></i></span>0.780</td><td class="num">—</td><td class="num">~8k</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>v1 → v2 的变化。</strong>空间从 12k 扩到 153k 个点后，随机搜索的分位从 0.89 降到 0.85（空间越大，随机越难碰到好点），而 LLM 方法从 0.78-0.81 几乎不变。差距从 11 个点缩到 4-7 个点，置信区间已经开始重叠。这符合预期：空间够大时推理有发挥余地。但 LLM 还没有稳定赢过零 token 的基线，说明当前架构的搜索质量仍在及格线附近。
 </div>
 
-<p>正在做的事：空间已扩到 v2（新增均值回归、突破、RSI、信号组合，加 regime 过滤和波动率缩放，153,090 个点），prompt 同步升级。v2 oracle 正在重建，重跑结果会补进来。这一轮回答的问题是：空间够大时，LLM 的推理能不能赢过随机搜索。</p>
+<div class="callout warn">
+  <strong>v1 的教训。</strong>裸 Test 夏普上 LLM 是赢的（它们都挑了 momentum 120 这类教科书参数，而 2020-21 的 SPY 恰好奖励长周期动量），但 oracle 分位显示它们输给随机搜索。如果只看 Test 收益会得出相反的结论，这就是为什么第三层不能当日常指标。
+</div>
+
+<p>v2 已完成。结论：空间扩大后差距缩小，但 LLM 还没稳定赢过零成本基线。下一步可以加 hypothesis quality（检验推理是否真起作用）和 sample efficiency（轨迹下面积）。</p>
 
 <h3>第二层还可以加的 task</h3>
 
