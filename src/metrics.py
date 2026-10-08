@@ -9,8 +9,8 @@ def compute_strategy_metrics(
     N = len(backtest_result) - 1
     total_value = backtest_result['total_value']
     returns = total_value.pct_change()
-    trade_shares = backtest_result['trade_shares']
-    open_price = backtest_result['open']
+    traded_value = backtest_result['traded_value']
+    n_trades = backtest_result['n_trades']
     daily_pnl = backtest_result['daily_pnl']
     total_return = total_value.iloc[-1] / total_value.iloc[0] - 1
     annualized_return = (total_value.iloc[-1] / total_value.iloc[0])**(T/N) - 1
@@ -20,8 +20,8 @@ def compute_strategy_metrics(
     max_drawdown = drawdown.min()
     sharpe = (annualized_return - risk_free_rate) / annualized_volatility
     calmar = annualized_return / abs(max_drawdown)
-    trade_count = (trade_shares != 0).sum()
-    turnover = abs(open_price * trade_shares).sum() / total_value.mean()
+    trade_count = n_trades.sum()
+    turnover = traded_value.sum() / total_value.mean()
     daily_win_rate = (daily_pnl > 0).sum() / (daily_pnl != 0).sum()
     metrics = {
         'total_return': total_return,
@@ -54,7 +54,7 @@ def compute_yearly_breakdown(res_strat: pd.DataFrame, res_bh: pd.DataFrame) -> p
         peak_spy = sub_bh['total_value'].cummax()
         spy_mdd = ((sub_bh['total_value'] - peak_spy) / peak_spy).min()
 
-        trades = (sub_strat['trade_shares'] != 0).sum()
+        trades = sub_strat['n_trades'].sum()
 
         records.append({
             'year': year,
@@ -73,12 +73,12 @@ def _calc_regime_stats(group: pd.DataFrame) -> pd.Series:
     
     return pd.Series({
         'days': len(group),
-        'exposure': (group['position'] > 0).mean(),
+        'exposure': (group['gross_exposure'] > 0).mean(),
         'total_pnl': group['daily_pnl'].sum(),
         'ann_return': ann_ret,
         'ann_vol': ann_vol,
         'sharpe': ann_ret / ann_vol if ann_vol > 0 else 0.0,
-        'trades': (group['trade_shares'] != 0).sum(),
+        'trades': group['n_trades'].sum(),
     })
 
 def compute_conditional_metrics(res: pd.DataFrame) -> pd.DataFrame:

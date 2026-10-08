@@ -1,3 +1,5 @@
+import math
+
 import pandas as pd
 
 
@@ -14,83 +16,106 @@ class Backtest:
         self.commission_rate = commission_rate
         self.rebalance_tolerance = rebalance_tolerance
 
-    def run(self, data: pd.DataFrame, signals: pd.Series) -> pd.DataFrame:
+    def run(
+        self,
+        opens: pd.DataFrame,
+        closes: pd.DataFrame,
+        weights: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Trade toward target weights at the next open.
+
+        `opens`, `closes`, and `weights` share one column per asset. One asset
+        is a one-column table. Weights are decided at the close and traded at
+        the next open. A positive weight is a long, a negative weight is a short.
+        Shares are whole numbers, truncated toward zero so the cash spent stays
+        inside the theoretical budget. `tracking_gap` is the open-price dollar
+        gap between those target weights and the shares actually held.
         """
-        Run the backtest on adjusted OHLC. Dividends are already in the returns.
-        :param data: market DataFrame with 'open' and 'close', indexed by date
-        :param signals: target weight Series from 0.0 to 1.0, indexed by date
-        :return: ledger with positions, friction, regime, and daily returns
-        """
-        target_signals = signals.shift(1)
-        current_cash = self.initial_capital
-        current_position = 0
+        assets = list(weights.columns)
+        missing = [
+            asset for asset in assets
+            if asset not in opens.columns or asset not in closes.columns
+        ]
+        if missing:
+            raise KeyError(f"Missing open or close prices for: {missing}")
+
+        target_weights = weights.shift(1)
+        cash = self.initial_capital
+        positions = {asset: 0.0 for asset in assets}
         prev_total_value = self.initial_capital
         records = []
 
-        for date in data.index:
-            open_price = data['open'][date]
-            close_price = data['close'][date]
-            signal = target_signals[date]
+        for date in weights.index:
+            v_open = cash
+            for asset in assets:
+                open_price = opens.at[date, asset]
+                if pd.notna(open_price):
+                    v_open += positions[asset] * open_price
 
-            # All-in cost per share, including slippage and commission.
-            cost_per_share = open_price * (1 + self.slippage_rate) * (1 + self.commission_rate)
-            v_open = current_cash + current_position * open_price
+            day_commission = 0.0
+            traded_value = 0.0
+            n_trades = 0
 
-            # Target weight: 0 liquidates; any other weight is a fraction of open equity.
-            if pd.isna(signal):
-                trade_shares = 0
-            elif signal == 0:
-                trade_shares = -current_position
-            else:
-                target_value = v_open * signal
-                current_value = current_position * open_price
-                delta_value = target_value - current_value
-                drift_ratio = delta_value / v_open if v_open > 0 else 0.0
+            for asset in assets:
+                weight = target_weights.at[date, asset]
+                open_price = opens.at[date, asset]
+                if pd.isna(weight) or pd.isna(open_price) or open_price == 0 or v_open <= 0:
+                    continue
 
-                if abs(drift_ratio) < self.rebalance_tolerance:
-                    trade_shares = 0
-                elif delta_value > 0:
-                    desired_buy = delta_value // cost_per_share
-                    max_buy = current_cash // cost_per_share
-                    trade_shares = max(0, min(desired_buy, max_buy))
-                elif delta_value < 0:
-                    desired_sell = abs(delta_value) // open_price
-                    trade_shares = -min(current_position, desired_sell)
+                delta_value = v_open * weight - positions[asset] * open_price
+                if delta_value == 0 or abs(delta_value) < self.rebalance_tolerance * v_open:
+                    continue
+
+                if delta_value > 0:
+                    unit_cash = open_price * (1 + self.slippage_rate) * (1 + self.commission_rate)
+                    execution_price = open_price * (1 + self.slippage_rate)
                 else:
-                    trade_shares = 0
+                    unit_cash = open_price * (1 - self.slippage_rate) * (1 - self.commission_rate)
+                    execution_price = open_price * (1 - self.slippage_rate)
 
-            # Execution price includes directional slippage.
-            if trade_shares > 0:
-                execution_price = open_price * (1 + self.slippage_rate)
-            elif trade_shares < 0:
-                execution_price = open_price * (1 - self.slippage_rate)
-            else:
-                execution_price = open_price
+                trade_units = math.trunc(delta_value / unit_cash)
+                if trade_units == 0:
+                    continue
+                cash -= trade_units * unit_cash
+                positions[asset] += trade_units
+                day_commission += abs(trade_units) * execution_price * self.commission_rate
+                traded_value += abs(trade_units * open_price)
+                n_trades += 1
 
-            commission = abs(trade_shares) * execution_price * self.commission_rate
-            current_cash -= trade_shares * execution_price + commission
-            current_position += trade_shares
+            tracking_gap = 0.0
+            for asset in assets:
+                weight = target_weights.at[date, asset]
+                open_price = opens.at[date, asset]
+                if pd.isna(weight) or pd.isna(open_price):
+                    continue
+                tracking_gap += abs(positions[asset] * open_price - v_open * weight)
 
-            asset_value = current_position * close_price
-            total_value = current_cash + asset_value
-            pnl = total_value - prev_total_value
+            asset_value = 0.0
+            gross_exposure = 0.0
+            for asset in assets:
+                close_price = closes.at[date, asset]
+                if pd.notna(close_price):
+                    market_value = positions[asset] * close_price
+                    asset_value += market_value
+                    gross_exposure += abs(market_value)
+
+            total_value = cash + asset_value
+            daily_pnl = total_value - prev_total_value
             prev_total_value = total_value
 
             records.append({
-                'date': date,
-                'open': open_price,
-                'close': close_price,
-                'signal': signal,
-                'position': current_position,
-                'cash': current_cash,
-                'asset_value': asset_value,
-                'total_value': total_value,
-                'daily_pnl': pnl,
-                'trade_shares': trade_shares,
-                'commission': commission,
-                'regime': data['regime'][date] if 'regime' in data.columns else None,
+                "date": date,
+                "cash": cash,
+                "asset_value": asset_value,
+                "gross_exposure": gross_exposure / total_value if total_value else 0.0,
+                "total_value": total_value,
+                "daily_pnl": daily_pnl,
+                "traded_value": traded_value,
+                "tracking_gap": tracking_gap,
+                "n_trades": n_trades,
+                "commission": day_commission,
             })
 
-        df_records = pd.DataFrame(records).set_index('date')
-        df_records['return'] = df_records['total_value'].pct_change()
-        return df_records
+        ledger = pd.DataFrame(records).set_index("date")
+        ledger["return"] = ledger["total_value"].pct_change()
+        return ledger
