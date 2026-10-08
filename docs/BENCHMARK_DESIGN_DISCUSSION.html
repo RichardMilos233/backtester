@@ -129,7 +129,9 @@
   </div>
 </div>
 
-<h3>总表：层 × task，会上按行决定做不做</h3>
+<h2><span class="sec-num">02</span>候选 Task 总表（会上按行决定）</h2>
+
+<p>下表列出了三层里所有可能的评测 task。每行包括：在哪一层、具体要干什么、怎么打分、标准答案从哪来、以及初步建议。<strong>会上的讨论重点是逐行决定做不做、优先级如何。</strong></p>
 
 <table class="master">
   <thead><tr>
@@ -208,7 +210,7 @@
   <strong>依赖关系是单向的。</strong>搜索建立在翻译正确之上，收益建立在搜索有效之上，反过来不成立。一个连用户描述都写错的 agent，它搜出的"好策略"没有意义；一个搜索很强的 agent，它的样本外收益仍然大半由行情决定。所以从投入产出看，优先级是 1 &gt; 2 &gt; 3。
 </div>
 
-<h2><span class="sec-num">02</span>为什么第三层不能当日常指标</h2>
+<h2><span class="sec-num">03</span>为什么第三层不能当日常指标</h2>
 
 <p>同事在群里的判断是对的：只有实盘是金标准；常见标的没有"严格"的样本外；样本外一旦用来验证就泄漏了；交易比赛的 hold-out 只能评一次。这里补充两点，一点是把"泄漏"说得更精确，一点是 LLM 特有的问题。</p>
 
@@ -239,7 +241,7 @@
   <strong>结论。</strong>第三层只能做成每个大版本烧一次的认证关口，不能做成每天跑的开发指标。日常迭代靠第一、二层，这两层没有泄漏问题。
 </div>
 
-<h2><span class="sec-num">03</span>第一层：翻译准确性 <span class="pill l1">建议主 benchmark</span></h2>
+<h2><span class="sec-num">04</span>第一层：翻译准确性 <span class="pill l1">建议主 benchmark</span></h2>
 
 <p>结构类似 SWE-bench：每条任务是一段自然语言的策略描述加一个参考实现，打分看 TIA 的产出和参考实现的差距。目前没有人在做这件事，而它直接对应 TIA 的核心价值。</p>
 
@@ -265,7 +267,7 @@
 
 <p>指标：逻辑正确率（每题 0/1）、持仓序列相关性、缺陷定位准确率、歧义反问率、前视偏差检出率。另外看 token 成本和耗时，但不进主排序。</p>
 
-<h2><span class="sec-num">04</span>第二层：搜索质量 <span class="pill l2">已有可运行基准</span></h2>
+<h2><span class="sec-num">05</span>第二层：搜索质量 <span class="pill l2">已有可运行基准</span></h2>
 
 <p>这是仓库里已经在跑的部分。核心设计是不比裸收益，比"在给定空间里搜到第几名"。</p>
 
@@ -305,7 +307,7 @@
   <li><strong>Out-of-distribution</strong>：在训练任务之外的标的和时段上，分位掉多少。</li>
 </ul>
 
-<h2><span class="sec-num">05</span>第三层：收益认证，不是 benchmark</h2>
+<h2><span class="sec-num">06</span>第三层：收益认证，不是 benchmark</h2>
 
 <p>两种形式，都是发版关口，每个版本用一次：</p>
 
@@ -314,7 +316,7 @@
   <li><strong>Synthetic with planted alpha</strong>：合成序列里埋入已知 alpha，看 TIA 找没找到、找错的比例多少。正确答案精确已知，可无限生成，也切断了 LLM 的记忆。现有的零漂移合成任务是它的最简版本（埋的 alpha 是零，所有方法都应该找不到，目前确实如此）。</li>
 </ul>
 
-<h2><span class="sec-num">06</span>建议与待讨论的问题</h2>
+<h2><span class="sec-num">07</span>建议与待讨论的问题</h2>
 
 <h3>优先级建议</h3>
 
