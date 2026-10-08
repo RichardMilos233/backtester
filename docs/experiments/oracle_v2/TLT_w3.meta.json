@@ -1,0 +1,10 @@
+{
+  "n_total_lattice": 108180,
+  "n_evaluated": 20000,
+  "sampled": true,
+  "include_vol": true,
+  "include_regimes": true,
+  "seed": 42,
+  "elapsed_seconds": 497.8,
+  "lattice_version": "v2"
+}
