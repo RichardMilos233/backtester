@@ -25,9 +25,11 @@ htmlcov/
 # Logs
 *.log
 
-# Course Documents / PDFs (keep local only)
+# Course documents (keep local only)
 *.pdf
 docs/*.pdf
+*.docx
+docs/*.docx
 
 # Local datasets / OHLCV data (keep local only, do not push to GitHub)
 data/ohlcv_daily/
