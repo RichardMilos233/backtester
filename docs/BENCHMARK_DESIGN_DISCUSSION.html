@@ -61,6 +61,14 @@
   .bar { height: 10px; background: var(--slate-100); border-radius: 5px; overflow: hidden; display: inline-block; width: 120px; vertical-align: middle; margin-right: 8px; }
   .bar > i { display: block; height: 100%; background: var(--primary-light); }
   .bar.base > i { background: var(--slate-500); }
+  .master { font-size: 13px; }
+  .master th, .master td { padding: 8px 10px; }
+  .master td.layer-cell { font-weight: 700; white-space: nowrap; vertical-align: middle; border-right: 1px solid var(--slate-200); }
+  .master tr.l1 td.layer-cell { color: var(--emerald-700); background: var(--emerald-50); }
+  .master tr.l2 td.layer-cell { color: var(--primary); background: #dbeafe; }
+  .master tr.l3 td.layer-cell { color: var(--rose-700); background: var(--rose-50); }
+  .master td.task { font-weight: 600; color: var(--slate-900); white-space: nowrap; }
+  .master td.dec { white-space: nowrap; }
   .q-list li { margin-bottom: 10px; }
   .q-list li b { color: var(--slate-900); }
   .footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--slate-200); font-size: 12px; color: var(--slate-500); }
@@ -120,6 +128,81 @@
     </dl>
   </div>
 </div>
+
+<h3>总表：层 × task，会上按行决定做不做</h3>
+
+<table class="master">
+  <thead><tr>
+    <th>层</th><th>Task</th><th>具体要干什么</th><th>怎么打分</th><th>标准答案从哪来</th><th>建议</th>
+  </tr></thead>
+  <tbody>
+    <tr class="l1"><td class="layer-cell" rowspan="6">1 翻译<br><small>写得对不对</small></td>
+      <td class="task">Identify bad alpha</td>
+      <td>给一段策略描述或代码，让 agent 指出逻辑缺陷：前视偏差、摩擦成本吃掉收益、数据挖掘、逻辑不自洽</td>
+      <td>缺陷类别命中率（每题 0/1）；误报率</td>
+      <td>trader 标注的缺陷分类表 + 人工构造或脱敏的真实坏策略</td>
+      <td class="dec"><span class="pill p1">先做</span></td></tr>
+    <tr class="l1"><td class="task">Systematic implementation</td>
+      <td>给规则性描述（"RSI&lt;30 买，&gt;70 卖"），agent 写出代码并回测</td>
+      <td>持仓序列与参考实现的一致率；PnL 偏差；前视检测</td>
+      <td>工程写参考实现，唯一</td>
+      <td class="dec"><span class="pill p1">先做</span></td></tr>
+    <tr class="l1"><td class="task">Discretionary interpretation</td>
+      <td>给判断性描述（"市场恐慌时加仓"），agent 写出实现</td>
+      <td>持仓是否落在多位 trader 实现的分布内</td>
+      <td>几位 trader 各独立写一版</td>
+      <td class="dec"><span class="pill p2">其次</span>（人力成本高）</td></tr>
+    <tr class="l1"><td class="task">Ambiguity detection</td>
+      <td>描述里埋一处关键歧义，看 agent 动手前会不会反问</td>
+      <td>反问率；反问是否命中标注的歧义点</td>
+      <td>标注歧义点</td>
+      <td class="dec"><span class="pill p2">其次</span></td></tr>
+    <tr class="l1"><td class="task">Factor library usage</td>
+      <td>描述里引用现成因子，看 agent 是否正确调用而非重写</td>
+      <td>调用正确率；参数正确率</td>
+      <td>因子库 API 即答案</td>
+      <td class="dec"><span class="pill p2">其次</span></td></tr>
+    <tr class="l1"><td class="task">Friction accounting</td>
+      <td>描述含手续费、滑点、T+1 等要求，看回测里有没有写对</td>
+      <td>各项成本是否按要求实现（逐项 0/1）</td>
+      <td>描述即答案</td>
+      <td class="dec"><span class="pill p3">顺手做</span>（可并入上两项）</td></tr>
+
+    <tr class="l2"><td class="layer-cell" rowspan="4">2 搜索<br><small>找得好不好</small></td>
+      <td class="task">In-space search</td>
+      <td>固定策略空间和回测预算，agent 迭代搜索，最后选一个</td>
+      <td>选中策略在全空间 Val 夏普中的分位；对随机搜索的胜率</td>
+      <td>oracle 穷举/采样全空间</td>
+      <td class="dec"><span class="pill l2">已在跑</span></td></tr>
+    <tr class="l2"><td class="task">Sample efficiency</td>
+      <td>同上，但看整条搜索轨迹而不只看终点</td>
+      <td>best-so-far 曲线下面积</td>
+      <td>同上，轨迹已记录</td>
+      <td class="dec"><span class="pill p2">其次</span>（零成本）</td></tr>
+    <tr class="l2"><td class="task">Hypothesis quality</td>
+      <td>agent 每轮写"这个参数应更好，因为 X"，检验预测和实际是否吻合</td>
+      <td>预测排名与实际排名的相关性</td>
+      <td>同上</td>
+      <td class="dec"><span class="pill p2">其次</span>（判断推理是否真起作用）</td></tr>
+    <tr class="l2"><td class="task">Out-of-distribution</td>
+      <td>在未见过的标的和时段上重跑</td>
+      <td>分位相对下降幅度</td>
+      <td>新任务的 oracle</td>
+      <td class="dec"><span class="pill p3">后做</span></td></tr>
+
+    <tr class="l3"><td class="layer-cell" rowspan="2">3 收益<br><small>赚不赚钱</small></td>
+      <td class="task">Blind hold-out</td>
+      <td>匿名、强变换后的真实数据，agent 产出策略，评一次封存</td>
+      <td>夏普、回撤、换手；只看一次</td>
+      <td>封存数据，每版本一套</td>
+      <td class="dec"><span class="pill p3">发版前</span>（认证，非 benchmark）</td></tr>
+    <tr class="l3"><td class="task">Synthetic with planted alpha</td>
+      <td>合成序列里埋入已知 alpha，看 agent 找没找到、找错多少</td>
+      <td>命中率；假阳性率</td>
+      <td>生成器参数即答案，可无限生成</td>
+      <td class="dec"><span class="pill p2">其次</span>（切断 LLM 记忆）</td></tr>
+  </tbody>
+</table>
 
 <div class="callout">
   <strong>依赖关系是单向的。</strong>搜索建立在翻译正确之上，收益建立在搜索有效之上，反过来不成立。一个连用户描述都写错的 agent，它搜出的"好策略"没有意义；一个搜索很强的 agent，它的样本外收益仍然大半由行情决定。所以从投入产出看，优先级是 1 &gt; 2 &gt; 3。
