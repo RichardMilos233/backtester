@@ -263,7 +263,7 @@
   /* 2-Card Overview */
   .part-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px;
     margin-bottom: 36px;
   }
@@ -272,6 +272,7 @@
     border-radius: 10px;
     padding: 18px 20px;
     background: var(--slate-50);
+    min-width: 0;
   }
   .part-card h3 {
     font-size: 16px;
@@ -281,6 +282,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .part-card p {
     font-size: 14px;
@@ -293,6 +296,8 @@
     font-weight: 700;
     padding: 2px 9px;
     border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .badge.p1 { background: #e0f2fe; color: #0369a1; }
   .badge.p2 { background: #e0e7ff; color: #4338ca; }
@@ -314,6 +319,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
   }
   .example-head h3 {
@@ -334,7 +340,11 @@
   .example-body {
     padding: 18px 20px;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
+  }
+  .example-body > div {
+    min-width: 0;
   }
 
   .step-label {
@@ -352,6 +362,7 @@
     border: 1px solid var(--slate-200);
     border-radius: 8px;
     padding: 12px 14px;
+    min-width: 0;
   }
   .step-problem p {
     font-size: 14px;
@@ -368,13 +379,14 @@
     padding: 11px 14px;
     border-radius: 7px;
     overflow-x: auto;
-    white-space: pre;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 100%;
   }
   pre.code .hl-bug {
     background: rgba(244, 63, 94, 0.25);
     border-left: 3px solid #f43f5e;
-    display: inline-block;
-    width: 100%;
+    display: block;
     padding-left: 6px;
     margin-left: -6px;
     color: #fecdd3;
@@ -383,8 +395,7 @@
   pre.code .hl-ok {
     background: rgba(16, 185, 129, 0.22);
     border-left: 3px solid #10b981;
-    display: inline-block;
-    width: 100%;
+    display: block;
     padding-left: 6px;
     margin-left: -6px;
     color: #a7f3d0;
@@ -392,8 +403,9 @@
 
   .vs-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 14px;
+    width: 100%;
   }
   .vs-col {
     border-radius: 8px;
@@ -401,6 +413,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
+    overflow: hidden;
   }
   .vs-col.good {
     background: var(--emerald-50);
@@ -416,6 +430,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .vs-col.good .vs-title { color: var(--emerald-700); }
   .vs-col.bad .vs-title { color: var(--rose-700); }

@@ -1411,7 +1411,7 @@ def write_html_page(data: Dict[str, Any], out_html: Path) -> None:
   }}
   .qa-grid {{
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 18px;
     margin-bottom: 18px;
   }}
