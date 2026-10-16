@@ -204,7 +204,7 @@ class OpenAICompatibleClient(BaseLLMClient):
         payload = {
             "model": self.model,
             "messages": messages,
-            "temperature": self.temperature
+            "temperature": 1.0 if self.model.startswith("gpt-6") else self.temperature,
         }
 
         max_retries = 3
@@ -239,6 +239,9 @@ class OpenAICompatibleClient(BaseLLMClient):
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode("utf-8", errors="replace")
                 last_error = RuntimeError(f"HTTPError {e.code}: {e.reason}\nBody: {error_body}")
+                if e.code == 400 and "temperature" in error_body and payload.get("temperature") != 1.0:
+                    payload["temperature"] = 1.0
+                    continue
                 if e.code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
                     time.sleep(2 * (attempt + 1))
                     continue
@@ -265,11 +268,17 @@ class OpenAICompatibleClient(BaseLLMClient):
         u.latency_seconds += time.perf_counter() - start
 
 
+MODEL_ALIASES: Dict[str, str] = {
+    "deepseek-4-pro": "deepseek-v4-pro",
+    "deepseek-4-flash": "deepseek-v4-flash",
+}
+
+
 def get_llm_client(
     model: str = "deepseek-chat",
     seed: int = 42,
     temperature: float = 0.7,
-    timeout: float = 90.0
+    timeout: float = 180.0
 ) -> BaseLLMClient:
     """
     Unified factory for LLM clients.
@@ -278,6 +287,8 @@ def get_llm_client(
     """
     if model == "mock":
         return MockLLMClient(seed=seed)
+
+    resolved_model = MODEL_ALIASES.get(model, model)
 
     import os
     from pathlib import Path
@@ -314,7 +325,7 @@ def get_llm_client(
     return OpenAICompatibleClient(
         api_key=api_key,
         base_url=base_url,
-        model=model,
+        model=resolved_model,
         temperature=temperature,
         timeout=timeout
     )

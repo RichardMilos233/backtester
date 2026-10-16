@@ -1,133 +1,100 @@
-# Agent Infra Benchmark 协议
+# TIA 三层评测基准运行协议 (Benchmark Protocol)
 
-把"换模型 / 换架构"的实验改成可重复、可横向比较的 benchmark。
-本文写死评分规则；跑 Test 之前不得更改。
+本文件说明三层评测框架（第一层：代码翻译与挑错、第二层：空间内策略搜索、第三层：合成 Planted Alpha 验证）的评分规则、文件结构与运行命令。
 
-## 一次运行
+---
 
-`(task_id, model, framework_type, seed)` 在固定预算 `max_backtests` 下搜索一次，
-产出一行 `summary.csv` 和一条 `runs.jsonl`。
+## 核心报告与数据导航
 
-- **task**：`agent/tasks.py`。一个标的 + 一个日期范围，内部仍按 60/20/20 切 Train/Val/Test。
-- **预算**：比的是送进回测的 spec 数，不是 LLM 调用数。被 Reviewer 打回不计。
-- **选优**：只看 Val 夏普。Test 只对最终胜出的 spec 评一次。
+| 文件路径 | 用途 |
+| :--- | :--- |
+| `docs/LAYER1_BENCHMARK_SHOWCASE.html` | **第一层主报告（精简版）**：8 模型总榜 + 挑错题/写代码题正反案例对比 |
+| `docs/LAYER1_FULL_EXPERIMENT_TABLE.html` | **第一层全量实验大表（网页交互版）**：40 题 × 8 模型（320 条）完整提问、标准答案、模型输出与对错批注 |
+| `docs/experiments/layer1_canonical/LAYER1_FULL_RESULTS.xlsx` | **第一层全量实验大表（Excel 版）**：含 4 个 Sheet（对错矩阵、挑错题全表、写代码题全表、320 行长表） |
+| `docs/BENCHMARK_DESIGN_DISCUSSION.html` | **三层框架总体设计讨论稿**：三层定位、12 项子任务状态与各层实测结论 |
+| `docs/FINAL_RESEARCH_REPORT.md` | **底层回测引擎与策略基线实证报告**：SPY 12 年日频回测、摩擦冲击、四象限 Regime 与 ML 评估 |
 
-## 任务集
+---
 
-| 套件 | 任务 | 用途 |
-| :-- | :-- | :-- |
-| `smoke` | `SPY_full` | 回归、调试；等于 Phase 1/2 的原始设置 |
-| `core` | SPY w1/w2/w3, QQQ_w2, IWM_w2, TLT_w3, GLD_w1, SYNTH_RW_full | 日常比较，8 个任务 |
-| `full` | 6 个 ETF × 3 窗口 + SYNTH_RW | 定稿 |
+## 第一层：策略代码翻译与挑错基准 (`agent/layer1/`)
 
-滚动窗口让 Test 落在不同行情：w1 ≈ 2020-07..2021-11（疫后单边涨），
-w2 ≈ 2022-02..2023-06（熊市 + 震荡），w3 ≈ 2024-05..最新。
-`SYNTH_RW` 是零漂移随机游走，任何策略都不该有稳定 alpha，用来测 agent 会不会追噪声。
+测大模型两件事：**1. 给一段策略和回测代码，能不能找出里面的隐蔽 Bug（挑错题 20 道）**；**2. 给一段交易员大白话规则，能不能写出和标准答案持仓一致的代码（实现题 20 道）**。
 
-数据：`scripts/fetch_ohlcv.py <TICKER>` 拉 Yahoo 复权日线；`scripts/make_synthetic.py` 生成合成序列。
+### 1. 评分标准
+- **第一部分：挑错题（20 题，`Identify Bad Alpha`）**
+  - 包含 10 道跨模块耦合 / `pandas` 默认参数陷阱（如 `where()` 默认填 `NaN` 导致回测引擎锁仓、`resample('3D')` 默认 `label='left'`、`ewm` 默认 `min_periods=0`）、6 道经典/复合缺陷、4 道无缺陷干净对照题。
+  - **通过标准（`strict_pass`）**：必须同时选对缺陷分类标签 + 在解释中准确指出底层触发机制（`mechanism_hit`）；干净对照题不误报才算通过。
+- **第二部分：实现题（20 题，`Systematic Implementation`）**
+  - 包含 6 道内部因子库与摩擦成本集成题（Track A）+ 14 道零代码提示的复杂状态机与重灾区题（Track B）。
+  - **通过标准（`passed`）**：黑盒运行通过、截断+未来价格扰动测试无前视偏差（`no_lookahead`）、无残留 `NaN`、杠杆与摩擦参数匹配，且 **非空仓活跃 K 线持仓一致率 `ActiveActionMatch >= 95%`**、**交易回合匹配 `TradeF1 >= 90%`**。
 
-## Oracle 与归一化分数
+### 2. 第一层 8 模型总榜（40 题正式版）
 
-每个 task 先用 `scripts/build_oracle.py` 在 Val 和 Test 上评估 `agent/space.py` 定义的格点。
-空间有两代，用 `LATTICE_VERSION` 区分：
+| 排名 | 模型 | 总分 (40 题) | 挑错题通过率 (20 题) | 写代码通过率 (20 题) | 活跃K线一致率 `ActiveMatch` |
+| :---: | :--- | :---: | :---: | :---: | :---: |
+| — | `golden`（标准参考） | **1.000** | 1.000 | 1.000 | 1.000 |
+| 1 | `gpt-6-astra` | **0.975** | 0.950 (19/20) | **1.000** (20/20) | **1.000** |
+| 2 | `claude-opus-5.5` | **0.900** | 0.950 (19/20) | 0.850 (17/20) | 0.920 |
+| 3 | `claude-sonnet-4-6` | **0.850** | 0.850 (17/20) | 0.850 (17/20) | 0.892 |
+| 4 | `gpt-5.4-mini` | **0.775** | 0.750 (15/20) | 0.800 (16/20) | 0.887 |
+| 4 | `deepseek-v4-pro` | **0.775** | 0.800 (16/20) | 0.750 (15/20) | 0.831 |
+| 6 | `deepseek-v3.2` | **0.650** | 0.750 (15/20) | 0.550 (11/20) | 0.646 |
+| 7 | `claude-haiku-4-5` | **0.625** | 0.750 (15/20) | 0.500 (10/20) | 0.596 |
+| 8 | `qwen-plus` | **0.500** | 0.600 (12/20) | 0.400 (8/20) | 0.449 |
 
-- **v1**（`docs/experiments/oracle/`）：momentum + macd，各 × 5 档波动率缩放，共 12,020 个 spec，穷举。
-- **v2**（`docs/experiments/oracle_v2/`）：新增 mean_reversion / breakout / rsi / combo，加上 regime 过滤，
-  全空间 153,090 个 spec，采样 20,000 个（`--regimes --sample 20000`）。分位是估计值，分辨率约 0.005。
-
-采样表在 `.meta.json` 里记 `lattice_version`；grid runner 发现版本不一致就不打 oracle 分，
-标 `lattice_mismatch=True`，绝不在不同格点之间比大小。有了全空间分布，agent 的选择就能换算成与行情无关的分数：
-
-| 列 | 含义 |
-| :-- | :-- |
-| `percentile_val` | agent 选中的 spec 在全空间 Val 夏普中的分位数。**主指标**：衡量搜索质量 |
-| `regret_test` | 全空间 Test 最优夏普 − 选中 spec 的 Test 夏普 |
-| `regret_vs_val_oracle` | "全知 Val 选择器"的 Test 夏普 − 选中 spec 的 Test 夏普。负值表示运气好过天花板 |
-| `percentile_test` | 选中 spec 在全空间 Test 夏普中的分位数 |
-| `on_lattice` | spec 是否落在格点上；不在则直接回测取值 |
-| `lattice_version` | 该行打分依据的格点版本（v1/v2） |
-| `lattice_mismatch` | oracle 表与该行代码的格点版本不一致，分值为空 |
-
-**为什么主指标是 Val 分位而不是 Test 夏普。** 在 `SPY_full` 上，全空间 Val 夏普与
-Test 夏普的 Spearman 相关是 −0.13。Val 上最好的 spec 在 Test 上只排中游。
-这意味着 Test 夏普高低基本不反映搜索能力。agent 能控制的只有"在给定反馈下找到 Val 上多好的 spec"。
-
-## 必须一起跑的非 LLM 基线
-
-| 代号 | 做法 |
-| :-- | :-- |
-| `R-random` | 同预算，从全格点均匀抽样 |
-| `R-grid` | 同预算，格点上等距取点，与种子无关 |
-
-两者 `model="none"`，不发任何请求。LLM 架构要进榜，先要在 `percentile_val` 上
-稳定赢过 `R-random`。
-
-## 过程指标
-
-`budget_utilization`（= actual_backtests / max_backtests，低于 1 说明架构在浪费预算或有 bug）、
-`parse_failures`、`reviewer_rejections`、`llm_calls`、`llm_total_tokens`、`llm_retries`、
-`llm_latency_seconds`、`elapsed_seconds`。`runs.jsonl` 里每条记录带 `trajectory`：
-每步回测的 spec 和 best-so-far，用来画样本效率曲线。
-
-## 汇总规则
-
-1. 同一 `(task, model, infra)` 先对种子取均值。
-2. 再跨 task 取均值。每个 task 权重相同。
-3. 排名用 `percentile_val`；并列报 `regret_test`、对 `R-random` 的胜率、`budget_utilization`、`parse_failures`、token 成本。
-4. 5 个种子 × 8 个 task 只能看方向；差距小于 1 个种子标准差的不写成结论。
-5. 任何 prompt、温度、反馈字段、选优指标的改动都是新版本，不与旧版本同表。
-
-## 命令
+### 3. 第一层运行与导出命令
 
 ```bash
-.venv/bin/python scripts/build_oracle.py --suite core          # v1，穷举，约 5 分钟/任务
-.venv/bin/python scripts/build_oracle.py --suite core --regimes --sample 20000   # v2，采样
-.venv/bin/python scripts/run_experiment_grid.py --mode benchmark --suite core \
-    --models deepseek-chat --infras C C-sota C-corr --budget 8 --with-baselines
-.venv/bin/python scripts/score_against_oracle.py docs/experiments/phase2_infras --group framework_type
+# 运行 40 题正式版第一层评测（自动复用已有缓存）
+.venv/bin/python scripts/run_layer1_canonical.py --out docs/experiments/layer1_canonical
+
+# 重新导出全量网页表 (LAYER1_FULL_EXPERIMENT_TABLE.html)、Excel (.xlsx) 与宽/长 CSV
+.venv/bin/python scripts/export_layer1_full_table.py
 ```
 
-## 信号类型（v2）
+---
 
-| signal_type | 参数 |
-| :-- | :-- |
-| `momentum` | `window` 2–260 |
-| `macd` | `fast` < `slow`，`signal_span` |
-| `mean_reversion` | `window` 5–120，`entry_z` ∈ [-3,-0.5]，`exit_z` ∈ [-1,0.5]，须 `entry_z < exit_z` |
-| `breakout` | 唐奇安，`entry_window` 10–260，`exit_window` 5–130，须 `exit_window <= entry_window` |
-| `rsi` | `window` 5–60，`lower` ∈ [10,45]，`upper` ∈ [55,90]，`mode` = reversion/trend |
-| `combo` | 1–2 个原语组件，`mode` = all/any/majority/mean |
+## 第二层：策略空间内搜索基准 (`agent/orchestrator.py` & `agent/oracle.py`)
 
-任何类型都可叠加 `use_vol_scaling` / `vol_target` / `max_leverage`，以及 `allowed_regimes`
-（Q1 高频高波、Q2 高波低量、Q3 低波低量、Q4 低波高量，以滚动一年中位数为界；不在名单内则空仓）。
+固定策略参数空间与 8 次回测预算，衡量 Agent 选出的策略在全空间 Oracle 验证集夏普分布中的分位数（`percentile_val`），以及整条搜索轨迹的样本效率（`auc_percentile_val`）。
 
-`, `combo` 的 `mode="mean"` 返回 0–1 的浮点权重，其余模式返回 0/1。
+### 1. 空间与任务集
+- **任务套件 `core`（8 个任务）**：`SPY_w1`, `SPY_w2`, `SPY_w3`, `QQQ_w2`, `IWM_w2`, `TLT_w3`, `GLD_w1`, `SYNTH_RW_full`（内部按 60/20/20 切 Search / Val / Test）。
+- **v1 空间**（`docs/experiments/oracle/`）：momentum + macd × 波动率缩放，共 12,020 个格点。
+- **v2 空间**（`docs/experiments/oracle_v2/`）：新增 mean_reversion / breakout / rsi / combo + 四象限 Regime 过滤，全空间 153,090 个格点（采样 20,000 个构建 Oracle）。
 
-## 已知结论（截至 2026-10-07）
+### 2. 第二层 v2 空间实测结果（8 任务 × 5 种子 × 预算 8，早停关闭）
 
-| 架构 / 模型 | percentile_val | test_sharpe | budget_util |
-| :-- | --: | --: | --: |
-| R-random (5 seeds) | 0.82 | 0.49 | 1.00 |
-| R-grid (5 seeds) | 0.46 | 0.93 | 1.00 |
-| C-hier 修复后 (deepseek, 3 seeds) | 0.27 | 0.98 | 1.00 |
-| claude-sonnet-4-6 / C | 0.33 | 1.03 | 1.00 |
-| deepseek-chat / C | 0.18 | 1.27 | 1.00 |
-| C-hier 修复前 | 0.15 | 1.16 | 0.25 |
+详见 `docs/experiments/benchmark_core_v2/LAYER2_EXTENSIONS_REPORT.md`：
 
-读法：LLM agent 几乎全部选了 momentum 120 附近的"教科书参数"，Val 分位只有 0.15–0.33，
-搜索质量输给随机抽样。它们的 Test 夏普高是因为 2024–2026 的 SPY 行情恰好奖励长周期动量。
+| 架构 / 方法 | 终点分位 `percentile_val` | 轨迹面积 `auc_percentile_val` | Step 1 $\to$ Step 8 分位提升 | 跑赢历史中位数比例 `median_imp_rate` |
+| :--- | :---: | :---: | :---: | :---: |
+| `R-grid`（等距网格基线） | **0.861** | 0.732 | $0.518 \to 0.861$ (+0.343) | 57.1% |
+| `R-random`（均匀随机基线） | 0.851 | **0.768** | $0.515 \to 0.851$ (+0.337) | 48.9% |
+| `C`（Researcher + Reviewer） | 0.811 | 0.708 | $0.426 \to 0.811$ (**+0.385**) | **61.4%** |
+| `C-sota`（锚定历史最优） | 0.783 | 0.709 | $0.479 \to 0.783$ (+0.304) | 57.1% |
+| `C-corr`（信号相关性去重） | 0.760 | 0.692 | $0.492 \to 0.760$ (+0.268) | 58.6% |
 
-### v1 格点，core 套件，8 任务 × 5 种子 × 预算 8（deepseek-chat）
+### 3. 第二层运行命令
 
-| 架构 | 早停 ON pv | 早停 OFF pv | 早停 OFF 利用率 |
-| :-- | --: | --: | --: |
-| R-random | 0.891 | — | 1.00 |
-| R-grid | 0.860 | — | 1.00 |
-| C-corr | 0.802 | 0.810 | 1.00 |
-| C | 0.745 | 0.792 | 1.00 |
-| C-sota | 0.760 | 0.776 | 1.00 |
+```bash
+# 构建 v2 空间 Oracle 分布表
+.venv/bin/python scripts/build_oracle.py --suite core --regimes --sample 20000
 
-关掉早停把预算对齐后，LLM 提升 0.016–0.047，仍然全部低于 R-random。三个 C 变体置信区间重叠，
-架构差异不显著。结论是 v1 格点太小（12,020 个点，随机抽 8 次就到 0.89 分位），
-没有给推理留出空间——这就是 v2 放开 vol/regime 和四类新信号的原因。
-v2 格点上的重跑结果待补。
+# 运行第二层 core 套件基准
+.venv/bin/python scripts/run_experiment_grid.py --mode benchmark --suite core \
+    --models deepseek-chat --infras C C-sota C-corr --budget 8 --with-baselines
+
+# 计算轨迹样本效率 (AUC) 与假设推理质量报告
+.venv/bin/python scripts/score_layer2_extensions.py docs/experiments/benchmark_core_v2
+```
+
+---
+
+## 第三层：合成 Planted Alpha 验证 (`agent/planted_alpha.py`)
+
+切断大模型对历史行情的记忆，往合成 OHLCV 序列中注入精确已知的数学 Alpha（`SYNTH_MOM` 动量漂移、`SYNTH_MREV` O-U 均值回归、`SYNTH_REGIME_Q1` 象限条件漂移、`SYNTH_NULL` 零漂移纯噪声对照），检验 Agent 能否命中真实信号族并在纯噪声上拒绝过拟合：
+
+```bash
+.venv/bin/python scripts/make_planted_alpha.py
+```
