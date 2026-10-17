@@ -26,6 +26,7 @@ def load_market_data(tickers: list[str]) -> dict[str, pd.DataFrame]:
         frames.append(df)
 
     panel = pd.concat(frames, axis=1).dropna().sort_index()
+    panel.index = panel.index + pd.Timedelta(hours=16)
     prices = {field: panel[field] for field in FIELDS}
     prices['return'] = prices['close'].pct_change()
     prices['forward_return'] = prices['close'].shift(-1) / prices['close'] - 1

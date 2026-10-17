@@ -32,6 +32,7 @@ def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
         slippage_rate=0.0005,
         commission_rate=0.0005,
         rebalance_tolerance=0.01,
+        signal_delay='5min',
     )
     result = bt.run(prices['open'], prices['close'], weights)
     metrics = compute_strategy_metrics(result)

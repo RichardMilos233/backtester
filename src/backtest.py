@@ -3,6 +3,27 @@ import math
 import pandas as pd
 
 
+def align_weights(
+    weights: pd.DataFrame,
+    bar_times: pd.DatetimeIndex,
+    open_time: pd.Timedelta = pd.Timedelta(hours=9, minutes=30),
+    delay: str = '0min',
+) -> pd.DataFrame:
+    """Map timestamped target weights onto the open of each bar.
+
+    `weights` is indexed by the moment each weight became known. `bar_times`
+    labels each daily bar by its close, so the bar's open is its date plus
+    `open_time`. Row t of the result is the latest weight known at least
+    `delay` before bar t's open, which is the weight traded at that open.
+    """
+    left = pd.DataFrame({'trade_time': bar_times.normalize() + open_time})
+    right = weights.sort_index()
+    right.index = right.index + pd.Timedelta(delay)
+    merged = pd.merge_asof(left, right, left_on='trade_time', right_index=True, direction='backward')
+    merged.index = bar_times
+    return merged.drop(columns='trade_time')
+
+
 class Backtest:
     def __init__(
         self,
@@ -10,11 +31,15 @@ class Backtest:
         slippage_rate: float = 0.0005,
         commission_rate: float = 0.0005,
         rebalance_tolerance: float = 0.01,
+        signal_delay: str = '0min',
+        open_time: pd.Timedelta = pd.Timedelta(hours=9, minutes=30),
     ):
         self.initial_capital = initial_capital
         self.slippage_rate = slippage_rate
         self.commission_rate = commission_rate
         self.rebalance_tolerance = rebalance_tolerance
+        self.signal_delay = signal_delay
+        self.open_time = open_time
 
     def run(
         self,
@@ -22,11 +47,14 @@ class Backtest:
         closes: pd.DataFrame,
         weights: pd.DataFrame,
     ) -> pd.DataFrame:
-        """Trade toward target weights at the next open.
+        """Trade toward target weights at the first open after they are known.
 
         `opens`, `closes`, and `weights` share one column per asset. One asset
-        is a one-column table. Weights are decided at the close and traded at
-        the next open. A positive weight is a long, a negative weight is a short.
+        is a one-column table. Price tables are indexed by each bar's close
+        time. `weights` is indexed by the time each weight became known, so a
+        weight built from a bar's close carries that close time. The first step
+        aligns each weight to the first open at least `signal_delay` after it.
+        A positive weight is a long, a negative weight is a short.
         Shares are whole numbers, truncated toward zero so the cash spent stays
         inside the theoretical budget. `tracking_gap` is the open-price dollar
         gap between those target weights and the shares actually held.
@@ -39,13 +67,13 @@ class Backtest:
         if missing:
             raise KeyError(f"Missing open or close prices for: {missing}")
 
-        target_weights = weights.shift(1)
+        target_weights = align_weights(weights, opens.index, self.open_time, self.signal_delay)
         cash = self.initial_capital
         positions = {asset: 0.0 for asset in assets}
         prev_total_value = self.initial_capital
         records = []
 
-        for date in weights.index:
+        for date in target_weights.index:
             v_open = cash
             for asset in assets:
                 open_price = opens.at[date, asset]
