@@ -73,10 +73,16 @@ class Backtest:
         prev_total_value = self.initial_capital
         records = []
 
-        for date in target_weights.index:
+        # Plain numpy arrays: row i is target_weights.index[i], column j is assets[j].
+        weights_arr = target_weights[assets].to_numpy()
+        opens_arr = opens.loc[target_weights.index, assets].to_numpy()
+        closes_arr = closes.loc[target_weights.index, assets].to_numpy()
+
+        for i, date in enumerate(target_weights.index):
             v_open = cash
-            for asset in assets:
-                open_price = opens.at[date, asset]
+            for j, asset in enumerate(assets):
+                # open_price = opens.at[date, asset]
+                open_price = opens_arr[i, j]
                 if pd.notna(open_price):
                     v_open += positions[asset] * open_price
 
@@ -84,9 +90,11 @@ class Backtest:
             traded_value = 0.0
             n_trades = 0
 
-            for asset in assets:
-                weight = target_weights.at[date, asset]
-                open_price = opens.at[date, asset]
+            for j, asset in enumerate(assets):
+                # weight = target_weights.at[date, asset]
+                # open_price = opens.at[date, asset]
+                weight = weights_arr[i, j]
+                open_price = opens_arr[i, j]
                 if pd.isna(weight) or pd.isna(open_price) or open_price == 0 or v_open <= 0:
                     continue
 
@@ -117,17 +125,20 @@ class Backtest:
                 n_trades += 1
 
             tracking_gap = 0.0
-            for asset in assets:
-                weight = target_weights.at[date, asset]
-                open_price = opens.at[date, asset]
+            for j, asset in enumerate(assets):
+                # weight = target_weights.at[date, asset]
+                # open_price = opens.at[date, asset]
+                weight = weights_arr[i, j]
+                open_price = opens_arr[i, j]
                 if pd.isna(weight) or pd.isna(open_price):
                     continue
                 tracking_gap += abs(positions[asset] * open_price - v_open * weight)
 
             asset_value = 0.0
             gross_exposure = 0.0
-            for asset in assets:
-                close_price = closes.at[date, asset]
+            for j, asset in enumerate(assets):
+                # close_price = closes.at[date, asset]
+                close_price = closes_arr[i, j]
                 if pd.notna(close_price):
                     market_value = positions[asset] * close_price
                     asset_value += market_value
