@@ -7,7 +7,7 @@ import pandas as pd
 
 import src.strategies as strategy
 from src.backtest import Backtest
-from src.data import load_market_data
+from src.data import DATA_DIR, load_market_data
 from src.metrics import compute_strategy_metrics
 from src.regimes import classify_market_regimes
 
@@ -18,7 +18,7 @@ def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
     regimes = classify_market_regimes(prices['return'], prices['volume'])
 
     # Leave one line uncommented.
-    weights = strategy.sma_cross(prices['close'])
+    # weights = strategy.sma_cross(prices['close'])
     # weights = strategy.macd(prices['close'])
     # weights = strategy.rsi(prices['close'])
     # weights = strategy.bollinger(prices['close'])
@@ -26,6 +26,7 @@ def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
     # weights = strategy.ridge(prices, regimes)
     # weights = strategy.pca(prices, regimes)
     # weights = strategy.hybrid(prices, regimes)
+    weights = strategy.cross_momentum(prices['close'])
 
     bt = Backtest(
         initial_capital=100000.0,
@@ -50,4 +51,5 @@ def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
 
 
 if __name__ == '__main__':
-    run(['SPY', 'TLT', 'GLD', 'USO', 'FXE'])
+    # run(['SPY', 'TLT', 'GLD', 'USO', 'FXE'])
+    run(sorted(path.stem for path in DATA_DIR.glob('*.csv')))

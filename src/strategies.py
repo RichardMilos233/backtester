@@ -54,6 +54,18 @@ def bollinger(closes: pd.DataFrame, window: int = 20, num_std: float = 2.0) -> p
     weights = weights.mask(closes < mid_band, 0.0)
     return _cap_gross_exposure(weights.ffill().fillna(0.0))
 
+def cross_momentum(closes: pd.DataFrame, lookback: int=252, skip: int=21) -> pd.DataFrame:
+    momentum = closes.shift(skip) / closes.shift(lookback) - 1
+    # skip to avoid momentum reversal
+    rank = momentum.rank(axis=1)
+    median = rank.median(axis=1)
+    rank = rank.sub(median, axis=0)
+    weights = rank.div(rank.abs().sum(axis=1), axis=0)
+    month_end = weights.groupby(weights.index.to_period('M')).tail(1)
+    weights = month_end.reindex(weights.index).ffill().fillna(0.0)
+    return weights
+
+
 
 def _fit_weight_frame(prices, regimes, model, split_date: str) -> pd.DataFrame:
     closes = prices['close']

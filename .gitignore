@@ -37,3 +37,6 @@ data/ohlcv/
 ohlcv_daily/
 ohlcv/
 
+
+# Local sandbox
+scripts/draft.py
