@@ -61,11 +61,21 @@ def cross_momentum(closes: pd.DataFrame, lookback: int=252, skip: int=21) -> pd.
     median = rank.median(axis=1)
     rank = rank.sub(median, axis=0)
     weights = rank.div(rank.abs().sum(axis=1), axis=0)
+    # only rebalance at the end of the month
     month_end = weights.groupby(weights.index.to_period('M')).tail(1)
     weights = month_end.reindex(weights.index).ffill().fillna(0.0)
     return weights
 
-
+def time_series_momentum(closes: pd.DataFrame, lookback=252, skip=0, vol_com=60, target_vol=0.40) -> pd.DataFrame:
+    momentum = closes.shift(skip) / closes.shift(lookback) - 1
+    sigma = closes.pct_change().ewm(com=vol_com).std() * np.sqrt(252)
+    weights = np.sign(momentum) * (target_vol/sigma)
+    n_assets = weights.notna().sum(axis=1)
+    weights = weights.div(n_assets, axis=0)
+    # only rebalance at the end of the month
+    month_end = weights.groupby(weights.index.to_period('M')).tail(1)
+    weights = month_end.reindex(weights.index).ffill().fillna(0.0)
+    return weights
 
 def _fit_weight_frame(prices, regimes, model, split_date: str) -> pd.DataFrame:
     closes = prices['close']

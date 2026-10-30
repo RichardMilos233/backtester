@@ -26,7 +26,8 @@ def run(tickers: list[str] = ['SPY']) -> tuple[pd.DataFrame, pd.Series]:
     # weights = strategy.ridge(prices, regimes)
     # weights = strategy.pca(prices, regimes)
     # weights = strategy.hybrid(prices, regimes)
-    weights = strategy.cross_momentum(prices['close'])
+    # weights = strategy.cross_momentum(prices['close'])
+    weights = strategy.time_series_momentum(prices['close'])
 
     bt = Backtest(
         initial_capital=100000.0,
