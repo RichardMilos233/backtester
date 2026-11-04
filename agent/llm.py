@@ -174,13 +174,18 @@ class OpenAICompatibleClient(BaseLLMClient):
         base_url: str = "https://api.openai.com/v1",
         model: str = "deepseek-chat",
         temperature: float = 0.7,
-        timeout: float = 60.0
+        timeout: float = 60.0,
+        max_tokens: int = 32768,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
+        # The gateway defaults Anthropic models to 4096 completion tokens, which truncates
+        # "reason first, then code" answers mid-function. Always send an explicit cap.
+        self.max_tokens = max_tokens
+        self.last_finish_reason: Optional[str] = None
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         import re
@@ -205,6 +210,7 @@ class OpenAICompatibleClient(BaseLLMClient):
             "model": self.model,
             "messages": messages,
             "temperature": 1.0 if self.model.startswith("gpt-6") else self.temperature,
+            "max_tokens": self.max_tokens,
         }
 
         max_retries = 3
@@ -221,7 +227,9 @@ class OpenAICompatibleClient(BaseLLMClient):
                 )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     result = json.loads(resp.read().decode("utf-8"))
-                    content = result["choices"][0]["message"]["content"]
+                    choice = result["choices"][0]
+                    content = choice["message"].get("content") or ""
+                    self.last_finish_reason = choice.get("finish_reason")
                     # Clean up reasoning <think>...</think> tags if model is reasoning-based
                     cleaned_content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
                     usage = result.get("usage") or {}
@@ -241,6 +249,15 @@ class OpenAICompatibleClient(BaseLLMClient):
                 last_error = RuntimeError(f"HTTPError {e.code}: {e.reason}\nBody: {error_body}")
                 if e.code == 400 and "temperature" in error_body and payload.get("temperature") != 1.0:
                     payload["temperature"] = 1.0
+                    continue
+                if (
+                    e.code == 400
+                    and "max_completion_tokens" in error_body
+                    and "max_tokens" in payload
+                ):
+                    # Some models (e.g. gpt-6.1-sol as of 2026-11) reject `max_tokens` and
+                    # require `max_completion_tokens` instead. Self-correct once and retry.
+                    payload["max_completion_tokens"] = payload.pop("max_tokens")
                     continue
                 if e.code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
                     time.sleep(2 * (attempt + 1))
@@ -278,7 +295,7 @@ def get_llm_client(
     model: str = "deepseek-chat",
     seed: int = 42,
     temperature: float = 0.7,
-    timeout: float = 180.0
+    timeout: float = 600.0
 ) -> BaseLLMClient:
     """
     Unified factory for LLM clients.

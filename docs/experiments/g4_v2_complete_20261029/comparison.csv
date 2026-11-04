@@ -1,0 +1,9 @@
+model,cases,draft_passed,final_passed,became_reference_pass,lost_reference_pass,final_pass_rate,approved,revision_limit,avg_calls,avg_tokens,reused_rows
+claude-haiku-5-5,22,13,12,1,2,0.5455,21,1,2.818,14460,21
+gpt-5.4-mini,22,7,7,4,4,0.3182,11,11,4.727,10743,21
+deepseek-v4.1-flash,22,13,14,1,0,0.6364,21,1,2.727,40034,21
+claude-sonnet-5-5,22,15,14,0,1,0.6364,22,0,2.273,8879,0
+claude-opus-5-5,22,17,14,0,3,0.6364,22,0,2.364,8570,0
+claude-fable-5.1,22,13,13,0,0,0.5909,22,0,2.273,8683,0
+gpt-6.1-sol,22,14,13,0,1,0.5909,21,1,2.727,5421,0
+deepseek-v4-pro,22,7,6,0,1,0.2727,20,2,3.818,25074,0

@@ -302,15 +302,16 @@ def main():
         "--models",
         nargs="+",
         default=[
+            # Agreed model set (2026-10-21): newest per tier from Anthropic / OpenAI / DeepSeek.
             "golden",
-            "claude-opus-5.5",
-            "gpt-6-astra",
-            "deepseek-v4-pro",
-            "claude-sonnet-4-6",
+            "claude-haiku-5-5",
+            "claude-sonnet-5-5",
+            "claude-opus-5-5",
+            "claude-fable-5.1",
             "gpt-5.4-mini",
-            "claude-haiku-4-5",
-            "qwen-plus",
-            "deepseek-v3.2",
+            "gpt-6.1-sol",
+            "deepseek-v4.1-flash",
+            "deepseek-v4-pro",
             "mock",
         ],
     )

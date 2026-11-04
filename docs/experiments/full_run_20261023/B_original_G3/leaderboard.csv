@@ -1,0 +1,10 @@
+harness,variant,model,cases,pass_rate,exec_pass,no_lookahead,active_match,trade_f1,calls_per_case,prompt_tok,completion_tok,qcb_ported
+G3,original,claude-fable-5.1,22,0.955,1.0,1.0,0.998,1.0,2.0,67789,55521,0.955
+G3,original,claude-haiku-5-5,22,0.955,1.0,1.0,1.0,1.0,2.0,67385,88106,0.955
+G3,original,claude-opus-5.5,22,0.909,1.0,1.0,1.0,1.0,2.0,65196,44490,0.909
+G3,original,claude-sonnet-5.5,22,1.0,1.0,1.0,1.0,1.0,2.0,67399,42136,1.0
+G3,original,deepseek-v4-pro,22,0.636,0.909,0.909,0.836,0.838,2.0,46256,155568,0.636
+G3,original,deepseek-v4.1-flash,22,0.955,1.0,1.0,1.0,1.0,2.0,48046,270727,0.955
+G3,original,gpt-5.4-mini,22,0.864,1.0,1.0,0.965,0.994,2.0,43093,24742,0.864
+G3,original,gpt-6-astra,22,0.909,1.0,1.0,0.984,1.0,2.0,42397,25930,0.909
+G3,original,gpt-6.1-sol,22,0.773,1.0,1.0,0.87,0.922,2.0,42880,32746,0.773

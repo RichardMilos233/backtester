@@ -1,0 +1,226 @@
+{
+  "harness": "G4_v2",
+  "harness_version": "g4_v2",
+  "task_set": "qcb22",
+  "variant": "original",
+  "models": [
+    "claude-haiku-5-5",
+    "gpt-5.4-mini",
+    "deepseek-v4.1-flash",
+    "claude-sonnet-5-5",
+    "claude-opus-5-5",
+    "claude-fable-5.1",
+    "gpt-6.1-sol",
+    "deepseek-v4-pro"
+  ],
+  "n_bars": 1500,
+  "workers": 12,
+  "max_revisions": 2,
+  "max_calls_per_task": 6,
+  "max_tokens_per_call": 32768,
+  "scoring_feedback_to_agent": false,
+  "source_sha256": {
+    "agent/layer1/harness.py": "974a03ca38e0b8d526a71c50cee66a5678f7c7ec2dcdd1771446de36e53d56e2",
+    "agent/llm.py": "c8fb7980c0085805e24394e476106c8263d7bcb72c84d9d617d3be9aed57a8fe",
+    "agent/layer1/qcb_cases.py": "844dde3cd9b48a97ef490fb1665b1fb3a0b98c6342fdf96f0ad40322b98a51be",
+    "agent/layer1/indicators.py": "19b3f069ef5e6110ec8bf695b13bc0e37f0ce901a7699f22525c70b2f5fb6532",
+    "agent/layer1/v2_hard.py": "4055078c4832d951793cf585fefcb904f0af0046fe54b66eb91118e1a150ff60",
+    "scripts/run_harness_impl.py": "67029faa35c0ecda1f457bfb83c61debf675220a4f46fd5b0907c9176d5d1c2e"
+  },
+  "tasks": [
+    {
+      "case_id": "qcb_101_atr_trail_macd_exit",
+      "ticker": "SPY",
+      "prompt_sha256": "342e879464bee4a5d07b16c397f5a8dc8eae979dd7ce617cc8354d61228ef738"
+    },
+    {
+      "case_id": "qcb_284_bb_breakout_ratchet_trail",
+      "ticker": "SPY",
+      "prompt_sha256": "bc03ea56fa199285c50890e3e80b8080fc379bdc2a953f44cf063ffbdc8fb96f"
+    },
+    {
+      "case_id": "qcb_226_sma252_atrpct_gate",
+      "ticker": "SPY",
+      "prompt_sha256": "2582f1af9fa67b623009cc839a450ebed6254ff2dca3ef97f201be424cd9c646"
+    },
+    {
+      "case_id": "qcb_064_ema_ribbon_order",
+      "ticker": "SPY",
+      "prompt_sha256": "31b3bb82020314bb7e1b3df2918fabdadb47d04e494241b921e8f22a7e70d86b"
+    },
+    {
+      "case_id": "qcb_317_month_day1_to_day5",
+      "ticker": "SPY",
+      "prompt_sha256": "41a43c4d907a650f18bf69253326731b87f401e6c1fdb991f4c520dd2f5530a6"
+    },
+    {
+      "case_id": "qcb_089_profit_dependent_exit",
+      "ticker": "SPY",
+      "prompt_sha256": "3e9fc4cd0c1fb2195de3ec4211cc2fa25c202ed86f06d68fade1a7dc10f30f0f"
+    },
+    {
+      "case_id": "qcb_227_universal_portfolio",
+      "ticker": "SPY",
+      "prompt_sha256": "3279bb670a1b931c9a1d77f2af175a70c834ba4fb46a51bdfbb3c1477e8b1d34"
+    },
+    {
+      "case_id": "qcb_013_rsi_pyramiding_partial_exits",
+      "ticker": "SPY",
+      "prompt_sha256": "6c02bbe22b0b989240c00e12cc06e03e23b4e466bff2be1bd6ba8cb86a1984ec"
+    },
+    {
+      "case_id": "qcb_044_atr_pullback_scale_in",
+      "ticker": "SPY",
+      "prompt_sha256": "db27d530838c89dfdf3d5317112f5bc509d0acddd7305509fb9a8149d7fc85f4"
+    },
+    {
+      "case_id": "qcb_212_vol_rotation_095",
+      "ticker": "SPY",
+      "prompt_sha256": "0de60d519358a13ddc75547fa59105682373967214f2b27218ee517df293ebfd"
+    },
+    {
+      "case_id": "qcb_175_mean_reversion_time_stop",
+      "ticker": "SPY",
+      "prompt_sha256": "97ee01f9e8965f262c23e1f7177f5d74c380acbb77233a3fc995b0d6477cecf3"
+    },
+    {
+      "case_id": "qcb_027_prev_exit_price_gate",
+      "ticker": "TLT",
+      "prompt_sha256": "103b87922fd5a461d8e87e0aec08daf86e1792cce4ce252fbf73cd37bbca50d7"
+    },
+    {
+      "case_id": "qcb_004_abs_momentum_252",
+      "ticker": "IWM",
+      "prompt_sha256": "018363a172d89b839f70e714bb585d657def36f5e94b86108d5cd01b4f16d155"
+    },
+    {
+      "case_id": "qcb_039_sma10_30_cross",
+      "ticker": "SPY",
+      "prompt_sha256": "3e75be1af030af55dfa13595d1129631667839cda29d1af0f8233c9387fb85e0"
+    },
+    {
+      "case_id": "qcb_052_macd_line_signal_cross",
+      "ticker": "SPY",
+      "prompt_sha256": "c639044c3f8530fc4f521fb2cdb9c9b2020ee1c8dc4cc6165bb70c1006e00337"
+    },
+    {
+      "case_id": "qcb_110_rsi_30_up_70_down",
+      "ticker": "SPY",
+      "prompt_sha256": "132b702634045d8700cf0eb96aada0820380d8e57041f1dd1e59f226d0c89d79"
+    },
+    {
+      "case_id": "qcb_126_supertrend_dema200",
+      "ticker": "SPY",
+      "prompt_sha256": "b12ac96d3eeb5852c41cf9a9cd996818cb8247361383ad7377dd884e5f045f10"
+    },
+    {
+      "case_id": "qcb_207_bb10_0674_breakout",
+      "ticker": "SPY",
+      "prompt_sha256": "ab382ba9dd37e9f19ea701d12c79e4b6951f10f792eafffa93853ac108682b98"
+    },
+    {
+      "case_id": "qcb_353_vwap20_macd_rsi",
+      "ticker": "SPY",
+      "prompt_sha256": "c9bab5c96c4b618c1d5dfdd196eeebaa33cbd7143cfd43f26fbf0bc3a410a7ea"
+    },
+    {
+      "case_id": "qcb_092_bb_breakout_tp6_sl3",
+      "ticker": "SPY",
+      "prompt_sha256": "1040f3e0292d54c5b26f58bc83e9e04853c603651f2ec84f5790b5aa7384cd19"
+    },
+    {
+      "case_id": "qcb_243_bb_breakout_after_3_below",
+      "ticker": "SPY",
+      "prompt_sha256": "7d7787447d681de60a64ebb04822f352b829b840beee82cb1e94aee53790c827"
+    },
+    {
+      "case_id": "qcb_256_sma50_200_atr_target",
+      "ticker": "SPY",
+      "prompt_sha256": "c8ecfd0f3ef4b77f199bfdba1a0e67cd8f90fc46902d134a6d1883b3d0128384"
+    }
+  ],
+  "data": {
+    "IWM": {
+      "bars": 1500,
+      "first": "2020-10-12 00:00:00",
+      "last": "2026-10-01 00:00:00",
+      "csv_sha256": "0dc87de7555887c6db2520b9aa63b0b6bb9eff065d538b3942a9d43bd2b86604"
+    },
+    "SPY": {
+      "bars": 1500,
+      "first": "2020-09-25 00:00:00",
+      "last": "2026-09-16 00:00:00",
+      "csv_sha256": "6e9ae2d12b0bb6bc56ccc9af2e9f58a44a8da80276eeb71f617e7d925592c8b4"
+    },
+    "TLT": {
+      "bars": 1500,
+      "first": "2020-10-12 00:00:00",
+      "last": "2026-10-01 00:00:00",
+      "csv_sha256": "9fc86db94d8c91f975aeb9d78b357a137cf3551b09242dfe534c9eea4c02c627"
+    }
+  },
+  "task_text_version": "qcb22_original_macd101_corrected_v1",
+  "reused_rows": 63,
+  "new_jobs": 113,
+  "changes": {
+    "qcb_101_atr_trail_macd_exit": "Correct labels fast12 slow9 signal26 to fast12 slow26 signal9; golden unchanged."
+  },
+  "interpretation": "Original-wording scores measure agreement with one pinned reference. Unspecified rules and other known task/reference conflicts remain; this is not an unambiguous implementation-correctness benchmark.",
+  "requested_temperature": 0.0,
+  "payload_temperature_by_model": {
+    "claude-haiku-5-5": 0.0,
+    "gpt-5.4-mini": 0.0,
+    "deepseek-v4.1-flash": 0.0,
+    "claude-sonnet-5-5": 0.0,
+    "claude-opus-5-5": 0.0,
+    "claude-fable-5.1": 0.0,
+    "gpt-6.1-sol": 1.0,
+    "deepseek-v4-pro": 0.0
+  },
+  "known_reference_limitations": [
+    {
+      "case_ids": [
+        "qcb_101_atr_trail_macd_exit",
+        "qcb_052_macd_line_signal_cross",
+        "qcb_126_supertrend_dema200"
+      ],
+      "issue": "Pinned reference specifies warm-up lengths not present in the original task text."
+    },
+    {
+      "case_ids": [
+        "qcb_089_profit_dependent_exit",
+        "qcb_027_prev_exit_price_gate"
+      ],
+      "issue": "Original text names undefined rules. Golden supplies one interpretation."
+    },
+    {
+      "case_ids": [
+        "qcb_226_sma252_atrpct_gate",
+        "qcb_064_ema_ribbon_order",
+        "qcb_004_abs_momentum_252",
+        "qcb_175_mean_reversion_time_stop",
+        "qcb_243_bb_breakout_after_3_below",
+        "qcb_256_sma50_200_atr_target"
+      ],
+      "issue": "Reference normalizes sizing to weight 1.0; original text requests fixed or risk-dependent sizing."
+    },
+    {
+      "case_ids": [
+        "qcb_212_vol_rotation_095"
+      ],
+      "issue": "Original tactical sell tests close against the band; reference tests high."
+    },
+    {
+      "case_ids": [
+        "qcb_044_atr_pullback_scale_in"
+      ],
+      "issue": "Original specifies a stop below each entry; reference uses a full-position stop only after four scale-ins."
+    },
+    {
+      "case_ids": [
+        "qcb_256_sma50_200_atr_target"
+      ],
+      "issue": "Reference omits the original equity-drawdown shutdown rule."
+    }
+  ]
+}

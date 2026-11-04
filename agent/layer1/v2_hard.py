@@ -615,6 +615,9 @@ class HighFreedomImplCase:
     prompt: str
     golden_fn: Callable[[pd.DataFrame], Dict[str, Any]]
     max_leverage: float = 1.0
+    source: str = ""                      # e.g. "quantcode-bench:101"
+    original_prompt: Optional[str] = None  # loose real-world wording, same golden as `prompt`
+    eval_ticker: str = "SPY"              # daily OHLCV file used for scoring (data/ohlcv_daily/<ticker>.csv)
 
 
 @dataclass
