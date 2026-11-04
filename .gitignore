@@ -38,13 +38,12 @@ data/ohlcv/
 ohlcv_daily/
 ohlcv/
 
-docs/experiments/oracle/*.csv
+results/layer2_search/oracle/*.csv
 
-# Raw LLM run traces, caches, and scratch archives
-docs/experiments/**/runs.jsonl
-docs/experiments/**/_archive/
-docs/experiments/**/offline_draft_analysis.json
-docs/experiments/**/offline_score_cache.json
-docs/experiments/harness_impl/
-docs/experiments/g4_v2_20261029/
+# Raw LLM run traces, caches, and scratch archives (summaries and reports are tracked)
+results/**/runs.jsonl
+results/**/logs/
+results/**/_archive/
+results/**/offline_draft_analysis.json
+results/**/offline_score_cache.json
 
