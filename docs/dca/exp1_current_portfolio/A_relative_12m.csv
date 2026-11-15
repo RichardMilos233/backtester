@@ -1,0 +1,3 @@
+series,current_12m_diff,percentile_in_own_history,hist_min,hist_median,hist_max,n_days,history_from,overlapping_12m_windows_note,current_BRK_12m,current_SPY_12m,current_QQQ_12m
+BRK_minus_SPY,0.0644,66.339,-0.5762,0.0065,0.839,7427,1997-05-08,daily overlapping,0.1802,0.1158,0.0998
+BRK_minus_QQQ,0.0804,71.9797,-1.7686,-0.0422,1.3211,6713,2000-03-08,daily overlapping,0.1802,0.1158,0.0998
