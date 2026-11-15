@@ -1,0 +1,5 @@
+config,growth,months,months_above_5pp,first_above_5pp,ratio_at_first,max_dev_when_ratio_below_2pp,months_above_5pp_when_ratio_below_2pp,months_ratio_below_2pp
+SPY50/QQQ20/BRK-B30 (1999-03+),constant,332,55,2001-01-02,0.045,8.57,54,279
+SPY50/QQQ20/BRK-B30 (1999-03+),growing 5%/yr,332,25,2001-01-02,0.0464,6.08,24,277
+VOO50/BRK-B30/VXUS20 (2011-02+),constant,189,0,,,4.92,0,152
+VOO50/BRK-B30/VXUS20 (2011-02+),growing 5%/yr,189,0,,,4.43,0,149
