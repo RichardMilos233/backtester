@@ -1,0 +1,5 @@
+sanity window start=2001-09-04 H=120
+rolling_dca wealth_multiple=1.324313 irr=0.054819
+DCABacktest  wealth_multiple=1.324313 irr=0.054819
+fixed 50/50 via linearity: 1.339669
+rolling_dca fixed 50/50 wealth_multiple=1.339669

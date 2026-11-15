@@ -1,0 +1,3 @@
+set,n_episodes,n_with_BRK,BRK_fell_less_than_SP,n_with_NDX,BRK_fell_less_than_NDX,BRK_rose_in_episode,median_SP,median_NDX,median_BRK
+S&P drawdowns >=10% (VFINX),20,19,13,17,12,5,-0.174,-0.2211,-0.1212
+NDX drawdowns >=15% (^NDX),15,15,10,15,13,6,-0.1818,-0.2293,-0.0681

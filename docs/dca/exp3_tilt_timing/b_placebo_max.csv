@@ -1,0 +1,16 @@
+pair,horizon,n_rule_variants,n_windows,n_placebo_shift,best_rule,best_real_med_ratio,shift_null_max_median,shift_null_max_p95,pct_best_in_shift_max_null,block_null_max_p95,pct_best_in_block_max_null,worst_rule,worst_real_med_ratio,pct_worst_in_shift_min_null,n_rules_real_gt_1,n_above_own_shift_p95,n_below_own_shift_p5
+QQQ/BRK-B,5y,48,273,644,contra12 hard,1.0264,1.0099,1.019,99.3789,1.0253,96.3,mom12 hard,0.9742,0.9317,23,18,14
+QQQ/BRK-B,10y,48,213,644,dd30_dip hard,1.0364,1.0262,1.0472,70.3416,1.0444,79.1,dd30_flee hard,0.9642,31.9876,24,6,6
+QQQ/BRK-B,20y,48,93,644,dd30_dip hard,1.1933,1.1388,1.2122,78.1056,1.1663,99.2,dd30_flee hard,0.7904,0.0,24,4,13
+SPY/BRK-B,5y,48,273,644,z_mean_revert hard,1.0227,1.0087,1.0171,100.0,1.0136,99.8,z_momentum hard,0.9773,0.0,23,20,20
+SPY/BRK-B,10y,48,213,644,dd20_dip hard,1.0236,1.0115,1.0226,96.118,1.0189,98.9,dd20_flee hard,0.9764,4.0373,24,18,18
+SPY/BRK-B,20y,48,93,644,dd20_dip hard,1.0276,1.0169,1.0327,89.1304,1.0256,97.0,dd20_flee hard,0.9724,10.559,24,12,12
+QQQ/SPY,5y,48,273,644,contra12 hard,1.0142,1.0042,1.0086,100.0,1.0109,99.3,mom12 hard,0.9862,0.0,20,13,11
+QQQ/SPY,10y,48,213,644,dd30_dip hard,1.0308,1.0175,1.0353,81.9876,1.0357,83.9,dd30_flee hard,0.967,15.528,24,8,7
+QQQ/SPY,20y,48,93,644,dd30_dip hard,1.1852,1.1373,1.2036,75.3106,1.1609,98.8,dd30_flee hard,0.7931,0.0,24,1,10
+^NDX/BRK-A,5y,48,397,892,z_mean_revert hard,1.0338,1.0091,1.0209,99.8879,1.0227,99.7,z_momentum hard,0.9687,0.2242,23,14,12
+^NDX/BRK-A,10y,48,337,892,dd20_dip hard,1.0462,1.0156,1.0423,98.5426,1.0449,96.3,dd30_flee hard,0.9514,1.7937,24,24,24
+^NDX/BRK-A,20y,48,217,892,dd30_dip hard,1.131,1.0494,1.127,97.9821,1.1079,99.8,dd30_flee hard,0.8671,2.13,24,12,16
+VFINX/BRK-A,5y,48,463,1024,z_mean_revert hard,1.0228,1.007,1.016,99.9023,1.0102,100.0,z_momentum hard,0.9775,0.1953,21,18,18
+VFINX/BRK-A,10y,48,403,1024,dd20_dip hard,1.0206,1.0094,1.02,96.2891,1.016,98.9,dd20_flee hard,0.9789,4.7852,24,24,24
+VFINX/BRK-A,20y,48,283,1024,dd20_dip hard,1.0459,1.0216,1.0479,93.9453,1.0332,99.5,dd20_flee hard,0.9488,5.8594,24,12,12
