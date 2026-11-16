@@ -261,3 +261,14 @@ def test_rolling_matches_backtest(weights):
         assert res['final_value'].iloc[i] == pytest.approx(m['final_value'], rel=1e-6)
         assert res['irr'].iloc[i] == pytest.approx(m['irr'], abs=1e-4)
         assert res['wealth_multiple'].iloc[i] == pytest.approx(m['wealth_multiple'], rel=1e-6)
+
+
+def test_irr_is_finite_on_a_ninety_year_horizon():
+    from src.dca import _irr_solve
+    years = 90
+    t = np.arange(years * 12)[None, :] / 12.0
+    flows = np.ones_like(t)
+    g = np.log(1.08)
+    final = np.array([np.sum(np.exp(g * (years - t)))])
+    irr = _irr_solve(t, flows, final, np.array([float(years)]))
+    assert abs(irr[0] - 0.08) < 1e-6

@@ -319,8 +319,10 @@ def _irr_solve(t: np.ndarray, flows: np.ndarray, final: np.ndarray, horizon: np.
     def f(g):
         return final * np.exp(-g * horizon) - np.sum(flows * np.exp(-g[:, None] * t), axis=1)
 
-    a = np.full(len(final), lo)
-    b = np.full(len(final), hi)
+    # Keep |g * horizon| small enough that exp() cannot overflow on long horizons.
+    bound = 600.0 / np.maximum(np.asarray(horizon, dtype=float), 1e-9)
+    a = np.maximum(np.full(len(final), lo), -bound)
+    b = np.minimum(np.full(len(final), hi), bound)
     fa, fb = f(a), f(b)
     ok = (fa > 0) & (fb < 0)
     for _ in range(iters):
