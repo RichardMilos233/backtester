@@ -1,0 +1,5 @@
+portfolio,years,irr %,wealth multiple,ann vol of nav %,max drawdown %,worst 12m %
+US only (VFINX),45.12,11.08,24.28,17.94,-55.25,-47.50
+US 80 / exUS 20,45.12,10.69,21.35,17.06,-55.86,-48.43
+US 60 / exUS 40,45.12,10.23,18.41,16.65,-56.59,-49.40
+exUS only (VWIGX),45.12,8.18,9.61,18.97,-59.58,-56.15

@@ -1,0 +1,7 @@
+pair,window,n_months,pct_intl_ahead,median_gap_pp,min_gap_pp,max_gap_pp,latest_gap_pp
+FF_MKT vs FF_DEVXUS,5y,375,24.0,6.5,-11.3,18.7,4.2
+FF_MKT vs FF_DEVXUS,10y,315,27.6,5.5,-4.4,12.7,5.9
+VFINX vs PRITX,5y,499,30.5,4.2,-14.0,17.6,6.7
+VFINX vs PRITX,10y,439,31.9,4.1,-4.8,9.1,7.1
+VFINX vs VWIGX,5y,483,34.4,3.5,-12.9,16.9,10.6
+VFINX vs VWIGX,10y,423,23.4,3.4,-4.9,9.8,3.9

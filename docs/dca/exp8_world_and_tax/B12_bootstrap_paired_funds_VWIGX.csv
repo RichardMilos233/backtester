@@ -1,0 +1,4 @@
+A minus B,IRR20 diff median pp,90% lo,90% hi,P(A>B),path-p10 diff pp,p10 90% lo,p10 90% hi,P(p10 A>B),maxDD diff pp (+ = A shallower),DD 90% lo,DD 90% hi,P(DD A shallower)
+US 80 / exUS 20 - US only (VFINX),-0.41,-1.07,0.77,0.25,-0.33,-0.97,0.67,0.27,-0.54,-2.74,0.92,0.38
+US 60 / exUS 40 - US only (VFINX),-0.84,-2.30,1.46,0.25,-0.77,-2.12,1.09,0.23,-1.68,-5.89,1.58,0.28
+exUS only (VWIGX) - US only (VFINX),-2.29,-7.96,3.25,0.25,-2.80,-7.63,1.74,0.15,-6.40,-20.10,0.56,0.06

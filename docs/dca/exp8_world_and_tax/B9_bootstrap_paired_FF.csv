@@ -1,0 +1,5 @@
+A minus B,IRR20 diff median pp,90% lo,90% hi,P(A>B),path-p10 diff pp,p10 90% lo,p10 90% hi,P(p10 A>B),maxDD diff pp (+ = A shallower),DD 90% lo,DD 90% hi,P(DD A shallower)
+Developed world (FF_DEV) - US only (FF_MKT),-2.72,-5.66,0.23,0.07,-2.52,-5.11,0.06,0.05,-2.17,-6.93,2.86,0.24
+US 80 / exUS 20 - US only (FF_MKT),-0.78,-1.22,0.08,0.06,-0.68,-1.14,0.11,0.07,-0.47,-1.87,1.21,0.24
+US 60 / exUS 40 - US only (FF_MKT),-1.65,-2.68,0.16,0.06,-1.47,-2.47,0.09,0.06,-1.20,-3.96,2.11,0.21
+exUS only (FF_DEVXUS) - US only (FF_MKT),-5.04,-10.08,0.40,0.06,-5.09,-9.49,-0.68,0.03,-5.57,-16.22,2.47,0.11

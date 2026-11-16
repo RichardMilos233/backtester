@@ -1,0 +1,6 @@
+portfolio,years,irr %,wealth multiple,ann vol of nav %,max drawdown %,worst 12m %
+US only (FF_MKT),36.25,11.04,11.53,18.11,-54.57,-46.71
+Developed world (FF_DEV),36.25,9.07,7.12,14.71,-57.03,-49.63
+US 80 / exUS 20,36.25,10.51,10.11,16.74,-55.27,-47.74
+US 60 / exUS 40,36.25,9.89,8.68,15.54,-56.23,-48.75
+exUS only (FF_DEVXUS),36.25,7.07,4.41,15.50,-59.17,-52.38

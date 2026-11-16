@@ -1,0 +1,7 @@
+block,portfolio,IRR20 diff median pp,90% lo,90% hi,P(>US)
+12,Developed world (FF_DEV),-2.54,-5.65,-0.10,0.05
+12,US 80 / exUS 20,-0.75,-1.22,-0.01,0.05
+24,Developed world (FF_DEV),-2.77,-5.55,0.37,0.07
+24,US 80 / exUS 20,-0.79,-1.21,0.12,0.08
+36,Developed world (FF_DEV),-2.83,-5.47,0.64,0.09
+36,US 80 / exUS 20,-0.81,-1.20,0.25,0.08

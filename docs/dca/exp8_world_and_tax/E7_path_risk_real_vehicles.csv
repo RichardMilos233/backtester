@@ -1,0 +1,5 @@
+portfolio,years,irr %,wealth multiple,ann vol of nav %,max drawdown %,worst 12m %
+1 S&P only,16.16,14.09,3.51,15.56,-33.91,-19.52
+2 S&P 70 / BRK 30,16.16,14.12,3.52,14.23,-32.59,-20.14
+3 World only,16.16,11.79,2.82,15.95,-34.07,-22.75
+4 World 70 / BRK 30,16.16,12.57,3.04,14.59,-32.53,-22.35

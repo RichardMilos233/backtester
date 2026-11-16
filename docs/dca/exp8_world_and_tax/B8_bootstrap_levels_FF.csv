@@ -1,0 +1,6 @@
+portfolio,IRR20 median %,IRR20 p10 across paths %,IRR20 p5 %,IRR20 min %,median path-p10 %,median maxDD %,p10 maxDD % (worse tail)
+US only (FF_MKT),11.42,5.84,4.12,-6.63,8.31,-41.70,-53.10
+Developed world (FF_DEV),8.58,3.66,1.98,-7.15,5.82,-44.41,-56.18
+US 80 / exUS 20,10.71,5.29,3.54,-6.87,7.64,-42.40,-53.90
+US 60 / exUS 40,9.87,4.63,2.84,-7.12,6.93,-43.27,-54.65
+exUS only (FF_DEVXUS),6.36,1.01,-0.50,-9.39,3.17,-46.45,-61.67

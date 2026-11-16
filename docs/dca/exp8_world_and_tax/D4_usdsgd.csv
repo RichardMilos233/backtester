@@ -1,0 +1,14 @@
+metric,value
+USD/SGD start (SGD per USD),1.722
+USD/SGD end,1.288
+annualised change of USD vs SGD %,-1.256
+annualised vol of USD/SGD %,5.108
+period,2003-12..2026-11
+"SPY_NET30 ann return, USD %",10.261
+"SPY_NET30 ann return, SGD %",8.871
+effect of FX on SPY_NET30 pp/yr,-1.390
+ann vol SPY_NET30 USD %,18.590
+ann vol SGD %,18.560
+VOO_NET30 ann return USD % (2010-09+),14.024
+VOO_NET30 ann return SGD %,13.721
+effect of FX on VOO_NET30 pp/yr,-0.303

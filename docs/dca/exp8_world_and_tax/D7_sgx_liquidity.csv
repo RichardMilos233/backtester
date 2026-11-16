@@ -1,0 +1,6 @@
+line,rows,mean daily volume (shares),median daily volume,min daily volume,mean daily traded value (SGD),median daily traded value (SGD),last close SGD,intraday range % (mean high-low / close)
+XUS.SI,23,189054.2,137490.0,75512,3589385.7,2609560.1,19.0,2.3
+XWR.SI,23,6231.5,5738.0,2557,1270736.7,1179001.3,204.6,2.3
+"CSPX.L (same dates, reference)",24,195343.0,172463.0,94483,,142271452.9,813.4,1.3
+"IWDA.L (same dates, reference)",24,926982.4,923058.5,299129,,135332350.6,144.0,1.2
+"VOO (same dates, reference)",24,6855041.7,6068550.0,4664800,,4264647618.9,693.4,1.2

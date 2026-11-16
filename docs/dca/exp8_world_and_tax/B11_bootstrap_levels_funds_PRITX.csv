@@ -1,0 +1,5 @@
+portfolio,IRR20 median %,IRR20 p10 across paths %,IRR20 p5 %,IRR20 min %,median path-p10 %,median maxDD %,p10 maxDD % (worse tail)
+US only (VFINX),11.77,6.34,4.60,-4.00,8.69,-36.12,-51.50
+US 80 / exUS 20,11.40,5.93,4.15,-4.47,8.28,-36.53,-52.90
+US 60 / exUS 40,10.84,5.46,3.69,-4.97,7.83,-37.46,-54.61
+exUS only (PRITX),8.31,3.01,1.25,-8.68,5.19,-43.53,-61.24

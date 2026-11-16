@@ -1,0 +1,4 @@
+series,drag used pp/yr,derived from
+"S&P (FF_MKT, SPY_NET15)",0.265,SPY - SPY_NET15 mean daily return x252 since 1993-01
+World (FF_DEV),0.276,0.5 x (URTH - URTH_NET30) since 2012-01
+ex-US (FF_DEVXUS),0.447,0.5 x (VEA - VEA_NET30) since 2007-07
