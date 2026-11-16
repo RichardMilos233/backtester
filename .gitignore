@@ -40,3 +40,6 @@ ohlcv/
 
 # Local sandbox
 scripts/draft.py
+
+# Downloaded research data (French library, JST) stays local
+data/
